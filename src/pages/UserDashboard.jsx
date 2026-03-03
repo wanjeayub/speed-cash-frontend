@@ -71,8 +71,9 @@ const UserDashboard = () => {
     return required.filter(Boolean).length;
   };
 
-  const completionPercentage = (getProfileCompletionStatus() / 6) * 100;
-  const canApplyForLoan = getProfileCompletionStatus() === 6;
+  const completionCount = getProfileCompletionStatus();
+  const completionPercentage = (completionCount / 6) * 100;
+  const canApplyForLoan = completionCount === 6;
 
   const tabs = [
     { id: "home", label: "Home", icon: FiHome },
@@ -94,7 +95,7 @@ const UserDashboard = () => {
               <p className="text-primary-100">
                 {canApplyForLoan
                   ? "Your profile is complete. You can now apply for loans."
-                  : "Please complete your profile to start applying for loans."}
+                  : `Please complete your profile (${completionCount}/6) to start applying for loans.`}
               </p>
             </div>
 
@@ -162,7 +163,7 @@ const UserDashboard = () => {
                       <div>
                         <p className="font-medium">Loan #{loan.loanNumber}</p>
                         <p className="text-sm text-gray-600">
-                          Amount: KES {loan.amount.toLocaleString()}
+                          Amount: KES {loan.amount?.toLocaleString() || 0}
                         </p>
                       </div>
                       <span
@@ -178,8 +179,8 @@ const UserDashboard = () => {
                                   : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {loan.status.charAt(0).toUpperCase() +
-                          loan.status.slice(1)}
+                        {loan.status?.charAt(0).toUpperCase() +
+                          loan.status?.slice(1)}
                       </span>
                     </div>
                   ))}
@@ -199,7 +200,7 @@ const UserDashboard = () => {
                 type="profile"
                 currentPhoto={user?.profilePhoto?.url}
                 onUpload={(file) => handlePhotoUpload(file, "profile")}
-                progress={uploadProgress.profile}
+                progress={uploadProgress?.profile}
               />
             </div>
 
@@ -212,14 +213,14 @@ const UserDashboard = () => {
                   label="ID Front"
                   currentPhoto={user?.idPhotoFront?.url}
                   onUpload={(file) => handlePhotoUpload(file, "idFront")}
-                  progress={uploadProgress.idFront}
+                  progress={uploadProgress?.idFront}
                 />
                 <PhotoUpload
                   type="idBack"
                   label="ID Back"
                   currentPhoto={user?.idPhotoBack?.url}
                   onUpload={(file) => handlePhotoUpload(file, "idBack")}
-                  progress={uploadProgress.idBack}
+                  progress={uploadProgress?.idBack}
                 />
               </div>
             </div>
@@ -360,75 +361,81 @@ const UserDashboard = () => {
               </div>
             ) : (
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Loan Number
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Amount
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Applied Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Due Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {loans.map((loan) => (
-                      <tr key={loan._id}>
-                        <td className="px-6 py-4 whitespace-nowrap font-medium">
-                          {loan.loanNumber}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          KES {loan.amount.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              loan.status === "approved"
-                                ? "bg-green-100 text-green-800"
-                                : loan.status === "pending"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : loan.status === "rejected"
-                                    ? "bg-red-100 text-red-800"
-                                    : loan.status === "paid"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {loan.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {new Date(loan.applicationDate).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {loan.dueDate
-                            ? new Date(loan.dueDate).toLocaleDateString()
-                            : "N/A"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <button
-                            onClick={() => {}}
-                            className="text-primary-600 hover:text-primary-900"
-                          >
-                            View Details
-                          </button>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Loan Number
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Amount
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Applied Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Due Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {loans.map((loan) => (
+                        <tr key={loan._id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap font-medium">
+                            {loan.loanNumber}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            KES {loan.amount?.toLocaleString() || 0}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                loan.status === "approved"
+                                  ? "bg-green-100 text-green-800"
+                                  : loan.status === "pending"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : loan.status === "rejected"
+                                      ? "bg-red-100 text-red-800"
+                                      : loan.status === "paid"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              {loan.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {loan.applicationDate
+                              ? new Date(
+                                  loan.applicationDate,
+                                ).toLocaleDateString()
+                              : "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {loan.dueDate
+                              ? new Date(loan.dueDate).toLocaleDateString()
+                              : "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <button
+                              onClick={() => {}}
+                              className="text-primary-600 hover:text-primary-900"
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -445,12 +452,22 @@ const UserDashboard = () => {
                   <h3 className="text-lg font-medium mb-2">Preferences</h3>
                   <div className="space-y-3">
                     <label className="flex items-center space-x-3">
-                      <input type="checkbox" className="form-checkbox" />
-                      <span>Email notifications for loan updates</span>
+                      <input
+                        type="checkbox"
+                        className="form-checkbox rounded"
+                      />
+                      <span className="text-sm">
+                        Email notifications for loan updates
+                      </span>
                     </label>
                     <label className="flex items-center space-x-3">
-                      <input type="checkbox" className="form-checkbox" />
-                      <span>SMS notifications for payment reminders</span>
+                      <input
+                        type="checkbox"
+                        className="form-checkbox rounded"
+                      />
+                      <span className="text-sm">
+                        SMS notifications for payment reminders
+                      </span>
                     </label>
                   </div>
                 </div>
@@ -486,11 +503,11 @@ const UserDashboard = () => {
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 flex">
-        {/* Sidebar */}
+        {/* Sidebar - Fixed position */}
         <div
           className={`${
             sidebarOpen ? "w-64" : "w-20"
-          } bg-white shadow-lg transition-all duration-300 flex flex-col`}
+          } bg-white shadow-lg transition-all duration-300 flex flex-col fixed h-full z-10 left-0 top-0`}
         >
           {/* Logo */}
           <div className="h-16 flex items-center justify-between px-4 border-b">
@@ -499,7 +516,9 @@ const UserDashboard = () => {
                 SpeedyCash
               </span>
             ) : (
-              <span className="text-2xl font-bold text-primary-600">SC</span>
+              <span className="text-2xl font-bold text-primary-600 mx-auto">
+                SC
+              </span>
             )}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -510,21 +529,25 @@ const UserDashboard = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4">
+          <nav className="flex-1 p-3 overflow-y-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full mb-2 dashboard-tab ${
+                  className={`w-full flex items-center px-3 py-3 mb-1 rounded-lg transition-colors ${
                     activeTab === tab.id
-                      ? "dashboard-tab-active"
-                      : "dashboard-tab-inactive"
+                      ? "bg-primary-50 text-primary-700"
+                      : "text-gray-600 hover:bg-gray-100"
                   }`}
                 >
-                  <Icon size={20} />
-                  {sidebarOpen && <span className="ml-3">{tab.label}</span>}
+                  <Icon size={20} className="flex-shrink-0" />
+                  {sidebarOpen && (
+                    <span className="ml-3 text-sm font-medium">
+                      {tab.label}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -532,19 +555,56 @@ const UserDashboard = () => {
 
           {/* User Info */}
           <div className="p-4 border-t">
+            <div className="flex items-center">
+              {user?.profilePhoto?.url ? (
+                <img
+                  src={user.profilePhoto.url}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <FiUser className="text-primary-600" size={16} />
+                </div>
+              )}
+              {sidebarOpen && (
+                <div className="ml-3 flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.firstName || "User"} {user?.lastName || ""}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {user?.email || ""}
+                  </p>
+                </div>
+              )}
+            </div>
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-3 text-gray-600 hover:text-red-600 w-full"
+              className={`mt-3 flex items-center text-gray-600 hover:text-red-600 w-full px-2 py-2 rounded-lg hover:bg-gray-50 ${
+                sidebarOpen ? "justify-start" : "justify-center"
+              }`}
             >
               <FiLogOut size={20} />
-              {sidebarOpen && <span>Logout</span>}
+              {sidebarOpen && <span className="ml-3 text-sm">Logout</span>}
             </button>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1 overflow-auto">
-          <div className="p-8">{renderTabContent()}</div>
+        {/* Main Content - With left margin to account for fixed sidebar */}
+        <div
+          className={`flex-1 transition-all duration-300 ${
+            sidebarOpen ? "ml-64" : "ml-20"
+          }`}
+        >
+          <div className="p-8">
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <LoadingSpinner size="large" />
+              </div>
+            ) : (
+              renderTabContent()
+            )}
+          </div>
         </div>
       </div>
 

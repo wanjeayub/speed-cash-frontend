@@ -36,6 +36,9 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [showIdModal, setShowIdModal] = useState(false);
+  const [googleUserData, setGoogleUserData] = useState(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -55,7 +58,6 @@ const Register = () => {
       ...formData,
       [e.target.name]: e.target.value,
     });
-    // Clear field error when user starts typing
     if (errors[e.target.name]) {
       setErrors({
         ...errors,
@@ -82,29 +84,22 @@ const Register = () => {
   const validate = () => {
     const newErrors = {};
 
-    // Email validation
     if (!formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       newErrors.email = "Please enter a valid email address";
     }
 
-    // Password validation
     if (formData.password.length < 6) {
       newErrors.password = "Password must be at least 6 characters";
-    } else if (!/(?=.*[0-9])/.test(formData.password)) {
-      newErrors.password = "Password must contain at least one number";
     }
 
-    // Confirm password
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    // ID Number validation (Kenyan ID - 7 or 8 digits)
     if (!formData.idNumber.match(/^\d{7,8}$/)) {
       newErrors.idNumber = "Please enter a valid Kenyan ID number (7-8 digits)";
     }
 
-    // Names validation
     if (!formData.firstName.trim()) {
       newErrors.firstName = "First name is required";
     }
@@ -112,7 +107,6 @@ const Register = () => {
       newErrors.lastName = "Last name is required";
     }
 
-    // Phone numbers validation (Kenyan format - 10 digits starting with 0)
     const phoneRegex = /^0\d{9}$/;
     if (
       !formData.phoneNumbers[0] ||
@@ -164,23 +158,16 @@ const Register = () => {
 
         const userInfo = await response.json();
 
-        // Show phone number modal for Google registration
-        setFormData({
-          ...formData,
-          email: userInfo.email,
-          firstName: userInfo.given_name || "",
-          lastName: userInfo.family_name || "",
-        });
-
-        // Trigger phone number collection
-        setShowPhoneModal(true);
         setGoogleUserData({
           email: userInfo.email,
           googleId: userInfo.sub,
-          firstName: userInfo.given_name,
-          lastName: userInfo.family_name,
+          firstName: userInfo.given_name || "",
+          lastName: userInfo.family_name || "",
           profilePhoto: userInfo.picture,
         });
+
+        // First show ID number modal
+        setShowIdModal(true);
       } catch (error) {
         console.error("Google Registration Failed:", error);
         toast.error("Google registration failed. Please try again.");
@@ -193,8 +180,14 @@ const Register = () => {
     flow: "implicit",
   });
 
-  const [showPhoneModal, setShowPhoneModal] = useState(false);
-  const [googleUserData, setGoogleUserData] = useState(null);
+  const handleIdSubmit = () => {
+    if (!formData.idNumber.match(/^\d{7,8}$/)) {
+      toast.error("Please enter a valid Kenyan ID number (7-8 digits)");
+      return;
+    }
+    setShowIdModal(false);
+    setShowPhoneModal(true);
+  };
 
   const handleGooglePhoneSubmit = async () => {
     if (!formData.phoneNumbers[0] || !formData.phoneNumbers[1]) {
@@ -207,9 +200,19 @@ const Register = () => {
       return;
     }
 
+    const phoneRegex = /^0\d{9}$/;
+    if (
+      !phoneRegex.test(formData.phoneNumbers[0]) ||
+      !phoneRegex.test(formData.phoneNumbers[1])
+    ) {
+      toast.error("Please enter valid Kenyan phone numbers (e.g., 0712345678)");
+      return;
+    }
+
     const result = await dispatch(
       googleLogin({
         ...googleUserData,
+        idNumber: formData.idNumber,
         phoneNumbers: formData.phoneNumbers.filter((p) => p.trim() !== ""),
       }),
     );
@@ -405,7 +408,7 @@ const Register = () => {
                     value={formData.phoneNumbers[0]}
                     onChange={(e) => handlePhoneChange(0, e.target.value)}
                     className={`input-field pl-10 ${errors.phone0 ? "border-red-500" : ""}`}
-                    placeholder="Primary: 0712 345 678"
+                    placeholder="Primary: 0712345678"
                     required
                   />
                 </div>
@@ -421,7 +424,7 @@ const Register = () => {
                     value={formData.phoneNumbers[1]}
                     onChange={(e) => handlePhoneChange(1, e.target.value)}
                     className={`input-field pl-10 ${errors.phone1 ? "border-red-500" : ""}`}
-                    placeholder="Secondary: 0733 456 789"
+                    placeholder="Secondary: 0733456789"
                     required
                   />
                 </div>
@@ -501,7 +504,57 @@ const Register = () => {
         </div>
       </div>
 
-      {/* Phone Number Collection Modal for Google Registration */}
+      {/* ID Number Modal for Google Registration */}
+      {showIdModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-xl font-semibold mb-4">
+              Complete Your Google Registration
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Please enter your Kenyan ID number to continue.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  ID Number (Kenyan)
+                </label>
+                <div className="relative">
+                  <FiCreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={formData.idNumber}
+                    onChange={(e) =>
+                      setFormData({ ...formData, idNumber: e.target.value })
+                    }
+                    className="input-field pl-10"
+                    placeholder="12345678"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  7-8 digit ID number
+                </p>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  onClick={() => setShowIdModal(false)}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button onClick={handleIdSubmit} className="btn-primary flex-1">
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phone Number Modal for Google Registration */}
       {showPhoneModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl max-w-md w-full mx-4 p-6">
@@ -510,7 +563,7 @@ const Register = () => {
             </h3>
             <p className="text-gray-600 mb-6">
               Please provide at least two phone numbers to complete your
-              registration with Google.
+              registration.
             </p>
 
             <div className="space-y-4">
@@ -525,9 +578,8 @@ const Register = () => {
                     value={formData.phoneNumbers[0]}
                     onChange={(e) => handlePhoneChange(0, e.target.value)}
                     className="input-field pl-10"
-                    placeholder="0712 345 678"
+                    placeholder="0712345678"
                     required
-                    autoFocus
                   />
                 </div>
               </div>
@@ -543,16 +595,11 @@ const Register = () => {
                     value={formData.phoneNumbers[1]}
                     onChange={(e) => handlePhoneChange(1, e.target.value)}
                     className="input-field pl-10"
-                    placeholder="0733 456 789"
+                    placeholder="0733456789"
                     required
                   />
                 </div>
               </div>
-
-              <p className="text-xs text-gray-500">
-                Ensure you have access to these numbers for verification
-                purposes.
-              </p>
 
               <div className="flex space-x-3 pt-4">
                 <button

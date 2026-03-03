@@ -33,15 +33,21 @@ export const uploadPhoto = createAsyncThunk(
       };
 
       const response = await userService.uploadPhoto(file, type, onProgress);
-      toast.success(`${type} photo uploaded successfully`);
 
       // Clear progress after completion
       setTimeout(() => {
         dispatch(clearUploadProgress(type));
       }, 1000);
 
+      toast.success(
+        `${type === "profile" ? "Profile" : "ID"} photo uploaded successfully`,
+      );
+
       return { type, photo: response.photo };
     } catch (error) {
+      // Clear progress on error
+      dispatch(clearUploadProgress(type));
+      toast.error(error.response?.data?.message || "Upload failed");
       return rejectWithValue(error.response?.data?.message || "Upload failed");
     }
   },

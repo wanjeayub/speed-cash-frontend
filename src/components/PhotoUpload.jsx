@@ -1,12 +1,37 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { FiUpload, FiCamera, FiCheckCircle } from "react-icons/fi";
+import { FiUpload, FiCamera, FiCheckCircle, FiX } from "react-icons/fi";
 
 const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
+  const [preview, setPreview] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+
+  useEffect(() => {
+    // Clean up preview when component unmounts
+    return () => {
+      if (preview) {
+        URL.revokeObjectURL(preview);
+      }
+    };
+  }, [preview]);
+
   const onDrop = useCallback(
-    (acceptedFiles) => {
+    (acceptedFiles, rejectedFiles) => {
+      if (rejectedFiles.length > 0) {
+        setUploadError("File too large or invalid format. Max size: 5MB");
+        return;
+      }
+
       if (acceptedFiles.length > 0) {
-        onUpload(acceptedFiles[0]);
+        const file = acceptedFiles[0];
+
+        // Create preview
+        const objectUrl = URL.createObjectURL(file);
+        setPreview(objectUrl);
+        setUploadError(null);
+
+        // Call onUpload with the file
+        onUpload(file);
       }
     },
     [onUpload],
@@ -28,6 +53,9 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
     return label || "Upload Photo";
   };
 
+  // Determine which image to show
+  const imageToShow = preview || currentPhoto;
+
   return (
     <div className="space-y-2">
       <label className="block text-sm font-medium text-gray-700">
@@ -39,24 +67,36 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
         className={`relative border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
           isDragActive
             ? "border-primary-500 bg-primary-50"
-            : currentPhoto
+            : imageToShow
               ? "border-green-500 bg-green-50"
-              : "border-gray-300 hover:border-primary-400"
+              : "border-gray-300 hover:border-primary-400 hover:bg-gray-50"
         }`}
       >
         <input {...getInputProps()} />
 
-        {currentPhoto ? (
-          <div className="space-y-2">
-            <img
-              src={currentPhoto}
-              alt={getLabel()}
-              className="mx-auto max-h-32 rounded-lg object-cover"
-            />
+        {imageToShow ? (
+          <div className="space-y-3">
+            <div className="relative inline-block">
+              <img
+                src={imageToShow}
+                alt={getLabel()}
+                className="mx-auto max-h-32 rounded-lg object-cover border-2 border-white shadow"
+              />
+              {preview && !currentPhoto && (
+                <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-xs">Uploading...</span>
+                </div>
+              )}
+            </div>
             <div className="flex items-center justify-center space-x-2 text-green-600">
               <FiCheckCircle />
-              <span className="text-sm">Uploaded</span>
+              <span className="text-sm">
+                {currentPhoto ? "Uploaded" : "Processing..."}
+              </span>
             </div>
+            {currentPhoto && (
+              <p className="text-xs text-gray-500">Click to replace</p>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -68,7 +108,7 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
             <p className="text-sm text-gray-600">
               {isDragActive
                 ? "Drop the image here"
-                : `Drag & drop or click to upload ${getLabel()}`}
+                : `Drag & drop or click to upload`}
             </p>
             <p className="text-xs text-gray-500">
               Max file size: 5MB (JPG, PNG, GIF)
@@ -79,15 +119,28 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
         {/* Progress Bar */}
         {progress > 0 && progress < 100 && (
           <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
-            <div className="w-3/4 bg-gray-200 rounded-full h-2.5">
-              <div
-                className="bg-primary-600 h-2.5 rounded-full"
-                style={{ width: `${progress}%` }}
-              ></div>
+            <div className="w-3/4">
+              <div className="bg-white rounded-full h-2.5 mb-2">
+                <div
+                  className="bg-primary-600 h-2.5 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+              <p className="text-white text-xs text-center">
+                {progress}% uploaded
+              </p>
             </div>
           </div>
         )}
       </div>
+
+      {/* Error Message */}
+      {uploadError && (
+        <div className="flex items-center space-x-2 text-sm text-red-600 bg-red-50 p-2 rounded">
+          <FiX size={16} />
+          <span>{uploadError}</span>
+        </div>
+      )}
     </div>
   );
 };
