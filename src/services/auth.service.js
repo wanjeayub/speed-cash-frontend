@@ -12,6 +12,7 @@ class AuthService {
   }
 
   async googleLogin(userData) {
+    console.log("Sending Google login data:", userData); // Debug log
     const response = await api.post("/auth/google", userData);
     return response.data;
   }

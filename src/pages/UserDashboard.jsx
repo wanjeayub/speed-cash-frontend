@@ -14,6 +14,7 @@ import {
   FiCheckCircle,
   FiAlertCircle,
   FiClock,
+  FiPhone,
 } from "react-icons/fi";
 import { logout } from "../store/slices/authSlice";
 import {
@@ -36,11 +37,36 @@ const UserDashboard = () => {
   const [activeTab, setActiveTab] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showLoanModal, setShowLoanModal] = useState(false);
+
+  // Initialize phone numbers properly
   const [profileForm, setProfileForm] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
-    phoneNumbers: user?.phoneNumbers?.map((p) => p.number) || ["", ""],
+    phoneNumbers: [],
   });
+
+  // Update form when user data changes
+  useEffect(() => {
+    console.log("User data updated:", user);
+    console.log("Phone numbers from user:", user?.phoneNumbers);
+
+    // Extract phone numbers correctly
+    let phoneNumbersArray = ["", ""];
+
+    if (user?.phoneNumbers && user.phoneNumbers.length > 0) {
+      phoneNumbersArray = user.phoneNumbers.map((p) => p.number || p);
+      // Ensure we have at least 2 elements
+      while (phoneNumbersArray.length < 2) {
+        phoneNumbersArray.push("");
+      }
+    }
+
+    setProfileForm({
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      phoneNumbers: phoneNumbersArray,
+    });
+  }, [user]);
 
   useEffect(() => {
     dispatch(getUserLoans());
@@ -52,7 +78,37 @@ const UserDashboard = () => {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
-    await dispatch(updateProfile(profileForm));
+
+    // Filter out empty phone numbers
+    const validPhoneNumbers = profileForm.phoneNumbers.filter(
+      (p) => p.trim() !== "",
+    );
+
+    if (validPhoneNumbers.length < 2) {
+      toast.error("Please provide at least two phone numbers");
+      return;
+    }
+
+    const result = await dispatch(
+      updateProfile({
+        firstName: profileForm.firstName,
+        lastName: profileForm.lastName,
+        phoneNumbers: validPhoneNumbers,
+      }),
+    );
+
+    if (!result.error) {
+      toast.success("Profile updated successfully");
+    }
+  };
+
+  const handlePhoneChange = (index, value) => {
+    const newPhones = [...profileForm.phoneNumbers];
+    newPhones[index] = value;
+    setProfileForm({
+      ...profileForm,
+      phoneNumbers: newPhones,
+    });
   };
 
   const handlePhotoUpload = async (file, type) => {
@@ -60,13 +116,15 @@ const UserDashboard = () => {
   };
 
   const getProfileCompletionStatus = () => {
+    const hasPhoneNumbers = user?.phoneNumbers && user.phoneNumbers.length >= 2;
+
     const required = [
       user?.firstName,
       user?.lastName,
       user?.profilePhoto?.url,
       user?.idPhotoFront?.url,
       user?.idPhotoBack?.url,
-      user?.phoneNumbers?.length >= 2,
+      hasPhoneNumbers,
     ];
     return required.filter(Boolean).length;
   };
@@ -230,6 +288,15 @@ const UserDashboard = () => {
               <h2 className="text-xl font-semibold mb-4">
                 Personal Information
               </h2>
+
+              {/* Display current phone numbers status */}
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Current Status:</strong>{" "}
+                  {user?.phoneNumbers?.length || 0} phone number(s) on file
+                </p>
+              </div>
+
               <form onSubmit={handleProfileUpdate} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -297,23 +364,23 @@ const UserDashboard = () => {
                     Phone Numbers (Minimum 2)
                   </label>
                   {profileForm.phoneNumbers.map((phone, index) => (
-                    <input
-                      key={index}
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => {
-                        const newPhones = [...profileForm.phoneNumbers];
-                        newPhones[index] = e.target.value;
-                        setProfileForm({
-                          ...profileForm,
-                          phoneNumbers: newPhones,
-                        });
-                      }}
-                      className="input-field"
-                      placeholder={`Phone number ${index + 1}`}
-                      required
-                    />
+                    <div key={index} className="relative">
+                      <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) =>
+                          handlePhoneChange(index, e.target.value)
+                        }
+                        className="input-field pl-10"
+                        placeholder={`Phone number ${index + 1} (e.g., 0712345678)`}
+                        required
+                      />
+                    </div>
                   ))}
+                  <p className="text-xs text-gray-500">
+                    Format: 10 digits starting with 0 (e.g., 0712345678)
+                  </p>
                 </div>
 
                 <button
@@ -328,6 +395,7 @@ const UserDashboard = () => {
           </div>
         );
 
+      // ... rest of the cases remain the same
       case "loans":
         return (
           <div className="space-y-6">

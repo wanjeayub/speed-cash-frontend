@@ -158,6 +158,14 @@ const Register = () => {
 
         const userInfo = await response.json();
 
+        // Pre-fill form with Google data
+        setFormData({
+          ...formData,
+          email: userInfo.email,
+          firstName: userInfo.given_name || "",
+          lastName: userInfo.family_name || "",
+        });
+
         setGoogleUserData({
           email: userInfo.email,
           googleId: userInfo.sub,
@@ -190,35 +198,45 @@ const Register = () => {
   };
 
   const handleGooglePhoneSubmit = async () => {
-    if (!formData.phoneNumbers[0] || !formData.phoneNumbers[1]) {
-      toast.error("Please provide at least two phone numbers");
+    // Validate phone numbers
+    const phoneRegex = /^0\d{9}$/;
+    if (
+      !formData.phoneNumbers[0] ||
+      !phoneRegex.test(formData.phoneNumbers[0])
+    ) {
+      toast.error(
+        "Please enter a valid primary phone number (e.g., 0712345678)",
+      );
       return;
     }
-
+    if (
+      !formData.phoneNumbers[1] ||
+      !phoneRegex.test(formData.phoneNumbers[1])
+    ) {
+      toast.error(
+        "Please enter a valid secondary phone number (e.g., 0733456789)",
+      );
+      return;
+    }
     if (formData.phoneNumbers[0] === formData.phoneNumbers[1]) {
       toast.error("Phone numbers must be different");
       return;
     }
 
-    const phoneRegex = /^0\d{9}$/;
-    if (
-      !phoneRegex.test(formData.phoneNumbers[0]) ||
-      !phoneRegex.test(formData.phoneNumbers[1])
-    ) {
-      toast.error("Please enter valid Kenyan phone numbers (e.g., 0712345678)");
-      return;
-    }
+    // Prepare complete user data for Google registration
+    const completeGoogleUserData = {
+      ...googleUserData,
+      idNumber: formData.idNumber,
+      phoneNumbers: formData.phoneNumbers.filter((p) => p.trim() !== ""),
+    };
 
-    const result = await dispatch(
-      googleLogin({
-        ...googleUserData,
-        idNumber: formData.idNumber,
-        phoneNumbers: formData.phoneNumbers.filter((p) => p.trim() !== ""),
-      }),
-    );
+    console.log("Submitting Google user data:", completeGoogleUserData); // Debug log
+
+    const result = await dispatch(googleLogin(completeGoogleUserData));
 
     if (!result.error) {
       setShowPhoneModal(false);
+      toast.success("Registration successful! Please complete your profile.");
       navigate("/dashboard");
     }
   };
@@ -580,6 +598,7 @@ const Register = () => {
                     className="input-field pl-10"
                     placeholder="0712345678"
                     required
+                    autoFocus
                   />
                 </div>
               </div>
@@ -600,6 +619,11 @@ const Register = () => {
                   />
                 </div>
               </div>
+
+              <p className="text-xs text-gray-500">
+                Ensure you have access to these numbers for verification
+                purposes.
+              </p>
 
               <div className="flex space-x-3 pt-4">
                 <button
