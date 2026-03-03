@@ -31,7 +31,7 @@ class UserService {
   }
 
   async applyForLoan(loanData) {
-    const response = await api.post("/loans/apply", loanData);
+    const response = await api.post("/users/loans/apply", loanData);
     return response.data;
   }
 }

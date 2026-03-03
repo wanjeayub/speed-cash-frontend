@@ -15,7 +15,9 @@ class LoanService {
 
   // Apply for a new loan
   async applyForLoan(loanData) {
+    console.log("Applying for loan with data:", loanData);
     const response = await api.post("/loans/apply", loanData);
+    console.log("Loan application response:", response.data);
     return response.data;
   }
 

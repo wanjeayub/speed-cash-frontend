@@ -1,11 +1,12 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import userService from "../../services/user.service";
-import { getCurrentUser } from "./authSlice"; // Import this to refresh user data
+import { getCurrentUser } from "./authSlice";
 import toast from "react-hot-toast";
 
 const initialState = {
   profile: null,
   loans: [],
+  currentLoan: null,
   uploadProgress: {},
   loading: false,
   error: null,
@@ -16,7 +17,6 @@ export const updateProfile = createAsyncThunk(
   async (profileData, { rejectWithValue, dispatch }) => {
     try {
       const response = await userService.updateProfile(profileData);
-      // Refresh user data after profile update
       await dispatch(getCurrentUser());
       toast.success("Profile updated successfully");
       return response;
@@ -30,19 +30,16 @@ export const uploadPhoto = createAsyncThunk(
   "user/uploadPhoto",
   async ({ file, type }, { dispatch, rejectWithValue }) => {
     try {
-      // Simulate progress
       const onProgress = (progress) => {
         dispatch(setUploadProgress({ type, progress }));
       };
 
       const response = await userService.uploadPhoto(file, type, onProgress);
 
-      // Clear progress after completion
       setTimeout(() => {
         dispatch(clearUploadProgress(type));
       }, 1000);
 
-      // Refresh user data to get updated photos
       await dispatch(getCurrentUser());
 
       toast.success(
@@ -51,7 +48,6 @@ export const uploadPhoto = createAsyncThunk(
 
       return { type, photo: response.photo };
     } catch (error) {
-      // Clear progress on error
       dispatch(clearUploadProgress(type));
       const message = error.response?.data?.message || "Upload failed";
       toast.error(message);
@@ -74,6 +70,20 @@ export const getUserLoans = createAsyncThunk(
   },
 );
 
+export const getLoanById = createAsyncThunk(
+  "user/getLoanById",
+  async (loanId, { rejectWithValue }) => {
+    try {
+      const response = await userService.getLoanById(loanId);
+      return response.loan;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch loan",
+      );
+    }
+  },
+);
+
 export const applyForLoan = createAsyncThunk(
   "user/applyForLoan",
   async (loanData, { rejectWithValue }) => {
@@ -83,6 +93,36 @@ export const applyForLoan = createAsyncThunk(
       return response;
     } catch (error) {
       const message = error.response?.data?.message || "Application failed";
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  },
+);
+
+export const updateLoan = createAsyncThunk(
+  "user/updateLoan",
+  async ({ loanId, loanData }, { rejectWithValue }) => {
+    try {
+      const response = await userService.updateLoan(loanId, loanData);
+      toast.success("Loan updated successfully");
+      return response.loan;
+    } catch (error) {
+      const message = error.response?.data?.message || "Update failed";
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  },
+);
+
+export const deleteLoan = createAsyncThunk(
+  "user/deleteLoan",
+  async (loanId, { rejectWithValue }) => {
+    try {
+      await userService.deleteLoan(loanId);
+      toast.success("Loan deleted successfully");
+      return loanId;
+    } catch (error) {
+      const message = error.response?.data?.message || "Delete failed";
       toast.error(message);
       return rejectWithValue(message);
     }
@@ -99,6 +139,9 @@ const userSlice = createSlice({
     },
     clearUploadProgress: (state, action) => {
       delete state.uploadProgress[action.payload];
+    },
+    clearCurrentLoan: (state) => {
+      state.currentLoan = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -129,7 +172,6 @@ const userSlice = createSlice({
       })
       .addCase(uploadPhoto.fulfilled, (state) => {
         state.loading = false;
-        // Don't update local state here - let getCurrentUser handle it
       })
       .addCase(uploadPhoto.rejected, (state, action) => {
         state.loading = false;
@@ -150,6 +192,20 @@ const userSlice = createSlice({
         state.error = action.payload;
       })
 
+      // Get Loan By ID
+      .addCase(getLoanById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getLoanById.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentLoan = action.payload;
+      })
+      .addCase(getLoanById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
       // Apply for Loan
       .addCase(applyForLoan.pending, (state) => {
         state.loading = true;
@@ -164,10 +220,53 @@ const userSlice = createSlice({
       .addCase(applyForLoan.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+
+      // Update Loan
+      .addCase(updateLoan.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateLoan.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.loans.findIndex(
+          (loan) => loan._id === action.payload._id,
+        );
+        if (index !== -1) {
+          state.loans[index] = action.payload;
+        }
+        if (state.currentLoan?._id === action.payload._id) {
+          state.currentLoan = action.payload;
+        }
+      })
+      .addCase(updateLoan.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Delete Loan
+      .addCase(deleteLoan.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteLoan.fulfilled, (state, action) => {
+        state.loading = false;
+        state.loans = state.loans.filter((loan) => loan._id !== action.payload);
+        if (state.currentLoan?._id === action.payload) {
+          state.currentLoan = null;
+        }
+      })
+      .addCase(deleteLoan.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
 
-export const { setUploadProgress, clearUploadProgress, clearError } =
-  userSlice.actions;
+export const {
+  setUploadProgress,
+  clearUploadProgress,
+  clearCurrentLoan,
+  clearError,
+} = userSlice.actions;
 export default userSlice.reducer;
