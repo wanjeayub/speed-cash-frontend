@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import { Helmet } from "react-helmet-async";
-import { FiMail, FiLock, FiLogIn, FiPhone, FiUser } from "react-icons/fi";
+import { FiMail, FiLock, FiLogIn, FiPhone } from "react-icons/fi";
 import { login, googleLogin, clearError } from "../store/slices/authSlice";
 import LoadingSpinner from "../components/LoadingSpinner";
 import toast from "react-hot-toast";
@@ -46,17 +46,33 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = await dispatch(login(formData));
-    if (!result.error) {
-      navigate("/dashboard");
+
+    if (!formData.email || !formData.password) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    try {
+      console.log("Dispatching login action with:", formData.email);
+      const resultAction = await dispatch(login(formData));
+
+      if (login.fulfilled.match(resultAction)) {
+        console.log("Login successful:", resultAction.payload);
+        toast.success("Login successful!");
+        navigate("/dashboard");
+      } else if (login.rejected.match(resultAction)) {
+        console.error("Login rejected:", resultAction.payload);
+        // Error is already shown via the error state and useEffect
+      }
+    } catch (error) {
+      console.error("Unexpected error during login:", error);
+      toast.error("An unexpected error occurred");
     }
   };
 
-  // Google Login Handler
   const googleLoginHandler = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       try {
-        // Fetch user info from Google
         const response = await fetch(
           "https://www.googleapis.com/oauth2/v3/userinfo",
           {
@@ -72,9 +88,7 @@ const Login = () => {
 
         const userInfo = await response.json();
 
-        // Check if user has phone numbers (you might want to check your backend)
-        // For now, we'll try to login directly
-        const result = await dispatch(
+        const resultAction = await dispatch(
           googleLogin({
             email: userInfo.email,
             googleId: userInfo.sub,
@@ -84,18 +98,21 @@ const Login = () => {
           }),
         );
 
-        if (!result.error) {
+        if (googleLogin.fulfilled.match(resultAction)) {
+          toast.success("Google login successful!");
           navigate("/dashboard");
-        } else if (result.payload?.includes("phone")) {
-          // If error indicates missing phone numbers, show phone collection modal
-          setGoogleUserData({
-            email: userInfo.email,
-            googleId: userInfo.sub,
-            firstName: userInfo.given_name,
-            lastName: userInfo.family_name,
-            profilePhoto: userInfo.picture,
-          });
-          setShowPhoneModal(true);
+        } else if (googleLogin.rejected.match(resultAction)) {
+          // Check if error indicates missing phone numbers
+          if (resultAction.payload?.toLowerCase().includes("phone")) {
+            setGoogleUserData({
+              email: userInfo.email,
+              googleId: userInfo.sub,
+              firstName: userInfo.given_name,
+              lastName: userInfo.family_name,
+              profilePhoto: userInfo.picture,
+            });
+            setShowPhoneModal(true);
+          }
         }
       } catch (error) {
         console.error("Google Login Failed:", error);
@@ -115,15 +132,16 @@ const Login = () => {
       return;
     }
 
-    const result = await dispatch(
+    const resultAction = await dispatch(
       googleLogin({
         ...googleUserData,
         phoneNumbers: phoneNumbers.filter((p) => p.trim() !== ""),
       }),
     );
 
-    if (!result.error) {
+    if (googleLogin.fulfilled.match(resultAction)) {
       setShowPhoneModal(false);
+      toast.success("Profile completed successfully!");
       navigate("/dashboard");
     }
   };
@@ -136,7 +154,6 @@ const Login = () => {
 
       <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
-          {/* Logo */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-primary-600">SpeedyCash</h1>
             <p className="text-gray-600 mt-2">Solutions</p>
@@ -146,7 +163,6 @@ const Login = () => {
             Welcome Back
           </h2>
 
-          {/* Email/Password Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -159,7 +175,7 @@ const Login = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="input-field pl-10"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Enter your email"
                   required
                   disabled={loading}
@@ -178,7 +194,7 @@ const Login = () => {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="input-field pl-10"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="Enter your password"
                   required
                   disabled={loading}
@@ -189,7 +205,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full flex items-center justify-center space-x-2"
+              className="w-full bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
             >
               {loading ? (
                 <LoadingSpinner size="small" />
@@ -202,7 +218,6 @@ const Login = () => {
             </button>
           </form>
 
-          {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
@@ -214,11 +229,10 @@ const Login = () => {
             </div>
           </div>
 
-          {/* Google Login Button */}
           <button
             onClick={() => googleLoginHandler()}
             disabled={loading}
-            className="w-full flex items-center justify-center space-x-3 border border-gray-300 rounded-lg px-4 py-3 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center space-x-3 border border-gray-300 rounded-lg px-4 py-3 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -243,7 +257,6 @@ const Login = () => {
             </span>
           </button>
 
-          {/* Register Link */}
           <p className="text-center mt-6 text-gray-600">
             Don't have an account?{" "}
             <Link
@@ -256,7 +269,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* Phone Number Collection Modal for Google Users */}
       {showPhoneModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl max-w-md w-full mx-4 p-6">
@@ -281,7 +293,7 @@ const Login = () => {
                     onChange={(e) =>
                       setPhoneNumbers([e.target.value, phoneNumbers[1]])
                     }
-                    className="input-field pl-10"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="0712 345 678"
                     required
                   />
@@ -300,7 +312,7 @@ const Login = () => {
                     onChange={(e) =>
                       setPhoneNumbers([phoneNumbers[0], e.target.value])
                     }
-                    className="input-field pl-10"
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="0733 456 789"
                     required
                   />
@@ -310,14 +322,14 @@ const Login = () => {
               <div className="flex space-x-3 pt-4">
                 <button
                   onClick={() => setShowPhoneModal(false)}
-                  className="btn-secondary flex-1"
+                  className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handlePhoneSubmit}
                   disabled={loading}
-                  className="btn-primary flex-1"
+                  className="flex-1 bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50"
                 >
                   {loading ? <LoadingSpinner size="small" /> : "Continue"}
                 </button>

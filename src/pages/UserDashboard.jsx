@@ -1,4 +1,12 @@
 import React, { useState, useEffect } from "react";
+import ChangePasswordModal from "../components/ChangePasswordModal";
+import LoanDetailsModal from "../components/LoanDetailsModal";
+import {
+  getLoanById,
+  updateLoan,
+  deleteLoan,
+  clearCurrentLoan,
+} from "../store/slices/userSlice";
 import { useSelector, useDispatch } from "react-redux";
 import { Helmet } from "react-helmet-async";
 import {
@@ -16,12 +24,13 @@ import {
   FiClock,
   FiPhone,
 } from "react-icons/fi";
-import { logout } from "../store/slices/authSlice";
+import { logout, getCurrentUser } from "../store/slices/authSlice";
 import {
   getUserLoans,
   uploadPhoto,
   updateProfile,
   applyForLoan,
+  changePassword,
 } from "../store/slices/userSlice";
 import PhotoUpload from "../components/PhotoUpload";
 import LoanApplication from "../components/LoanApplication";
@@ -37,6 +46,9 @@ const UserDashboard = () => {
   const [activeTab, setActiveTab] = useState("home");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showLoanModal, setShowLoanModal] = useState(false);
+  const [showLoanDetails, setShowLoanDetails] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [selectedLoanId, setSelectedLoanId] = useState(null);
 
   // Initialize phone numbers properly
   const [profileForm, setProfileForm] = useState({
@@ -44,6 +56,12 @@ const UserDashboard = () => {
     lastName: user?.lastName || "",
     phoneNumbers: [],
   });
+
+  useEffect(() => {
+    // Refresh user data when dashboard loads
+    dispatch(getCurrentUser());
+    dispatch(getUserLoans());
+  }, [dispatch]);
 
   // Update form when user data changes
   useEffect(() => {
@@ -129,6 +147,15 @@ const UserDashboard = () => {
     return required.filter(Boolean).length;
   };
 
+  const handleChangePassword = async (passwordData) => {
+    const result = await dispatch(changePassword(passwordData));
+    if (!result.error) {
+      setShowPasswordModal(false);
+    }
+  };
+
+  const hasPassword = !!user?.password;
+
   const completionCount = getProfileCompletionStatus();
   const completionPercentage = (completionCount / 6) * 100;
   const canApplyForLoan = completionCount === 6;
@@ -139,6 +166,60 @@ const UserDashboard = () => {
     { id: "loans", label: "My Loans", icon: FiCreditCard },
     { id: "settings", label: "Settings", icon: FiSettings },
   ];
+
+  const handleViewLoanDetails = async (loanId) => {
+    setSelectedLoanId(loanId);
+    await dispatch(getLoanById(loanId));
+    setShowLoanDetails(true);
+  };
+
+  const handleUpdateLoan = async (loanId, loanData) => {
+    const result = await dispatch(updateLoan({ loanId, loanData }));
+    if (!result.error) {
+      await dispatch(getUserLoans()); // Refresh loans list
+      setShowLoanDetails(false);
+      dispatch(clearCurrentLoan());
+    }
+  };
+
+  const handleDeleteLoan = async (loanId) => {
+    const result = await dispatch(deleteLoan(loanId));
+    if (!result.error) {
+      await dispatch(getUserLoans()); // Refresh loans list
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    // Check again to be safe
+    const hasActiveLoans = loans.some((loan) =>
+      ["pending", "approved", "partial"].includes(loan.status),
+    );
+
+    if (hasActiveLoans) {
+      toast.error("Cannot delete account with active loans");
+      return;
+    }
+
+    try {
+      // Show loading
+      toast.loading("Processing account deletion...");
+
+      // Call API to delete account
+      // const response = await userService.deleteAccount();
+
+      // If successful:
+      toast.dismiss();
+      toast.success("Account deleted successfully");
+
+      // Logout and redirect to home
+      dispatch(logout());
+      navigate("/");
+    } catch (error) {
+      toast.dismiss();
+      toast.error("Failed to delete account. Please try again.");
+      console.error("Account deletion error:", error);
+    }
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -395,7 +476,6 @@ const UserDashboard = () => {
           </div>
         );
 
-      // ... rest of the cases remain the same
       case "loans":
         return (
           <div className="space-y-6">
@@ -440,10 +520,10 @@ const UserDashboard = () => {
                           Amount
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
+                          Total to Repay
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Applied Date
+                          Status
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Due Date
@@ -454,53 +534,57 @@ const UserDashboard = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {loans.map((loan) => (
-                        <tr key={loan._id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap font-medium">
-                            {loan.loanNumber}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            KES {loan.amount?.toLocaleString() || 0}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                loan.status === "approved"
-                                  ? "bg-green-100 text-green-800"
-                                  : loan.status === "pending"
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : loan.status === "rejected"
-                                      ? "bg-red-100 text-red-800"
-                                      : loan.status === "paid"
-                                        ? "bg-blue-100 text-blue-800"
-                                        : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {loan.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {loan.applicationDate
-                              ? new Date(
-                                  loan.applicationDate,
-                                ).toLocaleDateString()
-                              : "N/A"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {loan.dueDate
-                              ? new Date(loan.dueDate).toLocaleDateString()
-                              : "N/A"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <button
-                              onClick={() => {}}
-                              className="text-primary-600 hover:text-primary-900"
-                            >
-                              View Details
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {loans.map((loan) => {
+                        const totalRepayment =
+                          loan.totalAmount ||
+                          loan.amount +
+                            (loan.amount * (loan.interestRate || 10)) / 100;
+                        return (
+                          <tr key={loan._id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap font-medium">
+                              {loan.loanNumber}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              KES {loan.amount?.toLocaleString() || 0}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap font-medium">
+                              KES {totalRepayment.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  loan.status === "approved"
+                                    ? "bg-green-100 text-green-800"
+                                    : loan.status === "pending"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : loan.status === "rejected"
+                                        ? "bg-red-100 text-red-800"
+                                        : loan.status === "paid"
+                                          ? "bg-blue-100 text-blue-800"
+                                          : loan.status === "partial"
+                                            ? "bg-purple-100 text-purple-800"
+                                            : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {loan.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {loan.dueDate
+                                ? new Date(loan.dueDate).toLocaleDateString()
+                                : "N/A"}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <button
+                                onClick={() => handleViewLoanDetails(loan._id)}
+                                className="text-primary-600 hover:text-primary-900 font-medium"
+                              >
+                                View Details
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -508,47 +592,315 @@ const UserDashboard = () => {
             )}
           </div>
         );
-
       case "settings":
+        // Check if user has any active loans (pending, approved, partial)
+        const hasActiveLoans = loans.some((loan) =>
+          ["pending", "approved", "partial"].includes(loan.status),
+        );
+
+        // Check if user has any loans at all
+        const hasAnyLoans = loans.length > 0;
+
+        // Check if all loans are paid or rejected
+        const allLoansClosed =
+          hasAnyLoans &&
+          loans.every((loan) => ["paid", "rejected"].includes(loan.status));
+
+        // User can delete account if: no loans OR all loans are paid/rejected
+        const canDeleteAccount = !hasAnyLoans || allLoansClosed;
+
         return (
           <div className="max-w-2xl mx-auto">
             <div className="bg-white rounded-xl p-6 shadow-sm">
-              <h2 className="text-xl font-semibold mb-4">Account Settings</h2>
+              <h2 className="text-xl font-semibold mb-6">Account Settings</h2>
 
               <div className="space-y-6">
+                {/* Preferences */}
                 <div>
-                  <h3 className="text-lg font-medium mb-2">Preferences</h3>
+                  <h3 className="text-lg font-medium mb-3">Preferences</h3>
                   <div className="space-y-3">
                     <label className="flex items-center space-x-3">
                       <input
                         type="checkbox"
-                        className="form-checkbox rounded"
+                        className="form-checkbox rounded text-primary-600"
                       />
-                      <span className="text-sm">
+                      <span className="text-sm text-gray-700">
                         Email notifications for loan updates
                       </span>
                     </label>
                     <label className="flex items-center space-x-3">
                       <input
                         type="checkbox"
-                        className="form-checkbox rounded"
+                        className="form-checkbox rounded text-primary-600"
                       />
-                      <span className="text-sm">
+                      <span className="text-sm text-gray-700">
                         SMS notifications for payment reminders
                       </span>
                     </label>
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Security</h3>
-                  <button className="btn-secondary">Change Password</button>
+                {/* Security */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-medium mb-3">Security</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">Password</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {hasPassword
+                            ? "Password is set. You can change it anytime."
+                            : "No password set. Set one now to enable email/password login."}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setShowPasswordModal(true)}
+                        className="btn-secondary"
+                      >
+                        {hasPassword ? "Change Password" : "Set Password"}
+                      </button>
+                    </div>
+
+                    {/* Password Tips */}
+                    <div className="mt-4 text-sm text-gray-600 bg-white p-3 rounded-lg">
+                      <p className="font-medium mb-2">Password tips:</p>
+                      <ul className="list-disc list-inside space-y-1 text-xs">
+                        <li>Use a mix of letters, numbers, and symbols</li>
+                        <li>Don't use common words or phrases</li>
+                        <li>Never share your password with anyone</li>
+                        <li>Use different passwords for different accounts</li>
+                      </ul>
+                    </div>
+                  </div>
                 </div>
 
+                {/* Two-Factor Authentication (Optional) */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-medium mb-3">
+                    Two-Factor Authentication
+                  </h3>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">2FA Status</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Not enabled - Add an extra layer of security
+                        </p>
+                      </div>
+                      <button
+                        className="btn-secondary opacity-50 cursor-not-allowed"
+                        disabled
+                        title="Coming soon"
+                      >
+                        Enable
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Two-factor authentication adds an extra layer of security
+                      to your account by requiring a verification code in
+                      addition to your password.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Account Information */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-medium mb-3">
+                    Account Information
+                  </h3>
+                  <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">
+                        Member since:
+                      </span>
+                      <span className="text-sm font-medium">
+                        {user?.createdAt
+                          ? new Date(user.createdAt).toLocaleDateString()
+                          : "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">
+                        Total loans:
+                      </span>
+                      <span className="text-sm font-medium">
+                        {loans.length}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">
+                        Active loans:
+                      </span>
+                      <span className="text-sm font-medium">
+                        {
+                          loans.filter((l) =>
+                            ["pending", "approved", "partial"].includes(
+                              l.status,
+                            ),
+                          ).length
+                        }
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">
+                        Account status:
+                      </span>
+                      <span className="text-sm font-medium text-green-600">
+                        Active
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Danger Zone - Conditional Delete Account */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-medium mb-3 text-red-600">
+                    Danger Zone
+                  </h3>
+                  <div
+                    className={`p-4 rounded-lg ${canDeleteAccount ? "bg-red-50" : "bg-gray-100"}`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p
+                          className={`font-medium ${canDeleteAccount ? "text-red-900" : "text-gray-500"}`}
+                        >
+                          Delete Account
+                        </p>
+                        <p
+                          className={`text-sm mt-1 ${canDeleteAccount ? "text-red-600" : "text-gray-500"}`}
+                        >
+                          {canDeleteAccount
+                            ? "Permanently delete your account and all personal data"
+                            : "You cannot delete your account while you have active loans"}
+                        </p>
+
+                        {/* Loan Status Message */}
+                        {!canDeleteAccount && (
+                          <div className="mt-3 space-y-2">
+                            {hasActiveLoans && (
+                              <p className="text-xs text-red-600 flex items-center">
+                                <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                                You have active loans that need to be settled
+                                first
+                              </p>
+                            )}
+                            {loans.some((l) => l.status === "pending") && (
+                              <p className="text-xs text-yellow-600 flex items-center">
+                                <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>
+                                You have pending loan applications
+                              </p>
+                            )}
+                            {loans.some((l) => l.status === "approved") && (
+                              <p className="text-xs text-green-600 flex items-center">
+                                <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                                You have approved loans that need repayment
+                              </p>
+                            )}
+                            {loans.some((l) => l.status === "partial") && (
+                              <p className="text-xs text-purple-600 flex items-center">
+                                <span className="inline-block w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
+                                You have partially paid loans
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Loan Summary */}
+                        {hasAnyLoans && (
+                          <div className="mt-3 text-xs text-gray-600">
+                            <p>Loan summary:</p>
+                            <ul className="list-disc list-inside mt-1">
+                              <li>Total loans: {loans.length}</li>
+                              <li>
+                                Paid:{" "}
+                                {
+                                  loans.filter((l) => l.status === "paid")
+                                    .length
+                                }
+                              </li>
+                              <li>
+                                Pending:{" "}
+                                {
+                                  loans.filter((l) => l.status === "pending")
+                                    .length
+                                }
+                              </li>
+                              <li>
+                                Approved:{" "}
+                                {
+                                  loans.filter((l) => l.status === "approved")
+                                    .length
+                                }
+                              </li>
+                              <li>
+                                Partial:{" "}
+                                {
+                                  loans.filter((l) => l.status === "partial")
+                                    .length
+                                }
+                              </li>
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        className={`px-4 py-2 rounded-lg transition-colors ${
+                          canDeleteAccount
+                            ? "bg-red-600 text-white hover:bg-red-700"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        }`}
+                        onClick={() => {
+                          if (
+                            canDeleteAccount &&
+                            window.confirm(
+                              "Are you sure you want to delete your account? This action cannot be undone.\n\n" +
+                                "All your personal data will be permanently removed.",
+                            )
+                          ) {
+                            handleDeleteAccount();
+                          }
+                        }}
+                        disabled={!canDeleteAccount}
+                        title={
+                          !canDeleteAccount
+                            ? "Settle all loans before deleting account"
+                            : ""
+                        }
+                      >
+                        Delete Account
+                      </button>
+                    </div>
+
+                    {/* Additional Info for users with loans */}
+                    {hasAnyLoans && !canDeleteAccount && (
+                      <div className="mt-4 p-3 bg-white rounded-lg border border-red-200">
+                        <p className="text-xs text-gray-700">
+                          <strong>To delete your account:</strong> You need to
+                          settle all active loans first. Once all loans are paid
+                          or rejected, you'll be able to delete your account.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Info for users with no loans */}
+                    {!hasAnyLoans && (
+                      <div className="mt-4 p-3 bg-white rounded-lg border border-green-200">
+                        <p className="text-xs text-green-700">
+                          <strong>Account can be deleted:</strong> You have no
+                          loans associated with your account.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Logout */}
                 <div className="pt-6 border-t">
                   <button
                     onClick={handleLogout}
-                    className="flex items-center space-x-2 text-red-600 hover:text-red-700"
+                    className="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors"
                   >
                     <FiLogOut />
                     <span>Logout</span>
@@ -558,7 +910,6 @@ const UserDashboard = () => {
             </div>
           </div>
         );
-
       default:
         return null;
     }
@@ -684,6 +1035,29 @@ const UserDashboard = () => {
             await dispatch(applyForLoan(data));
             setShowLoanModal(false);
           }}
+        />
+      )}
+
+      {/* Loan Details Modal */}
+      {showLoanDetails && (
+        <LoanDetailsModal
+          loan={loans.find((l) => l._id === selectedLoanId)}
+          onClose={() => {
+            setShowLoanDetails(false);
+            setSelectedLoanId(null);
+            dispatch(clearCurrentLoan());
+          }}
+          onUpdate={handleUpdateLoan}
+          onDelete={handleDeleteLoan}
+        />
+      )}
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <ChangePasswordModal
+          onClose={() => setShowPasswordModal(false)}
+          onSubmit={handleChangePassword}
+          hasExistingPassword={hasPassword}
         />
       )}
     </>

@@ -56,6 +56,22 @@ export const uploadPhoto = createAsyncThunk(
   },
 );
 
+export const deletePhoto = createAsyncThunk(
+  "user/deletePhoto",
+  async (type, { rejectWithValue, dispatch }) => {
+    try {
+      await userService.deletePhoto(type);
+      await dispatch(getCurrentUser());
+      toast.success("Photo deleted successfully");
+      return type;
+    } catch (error) {
+      const message = error.response?.data?.message || "Delete failed";
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  },
+);
+
 export const getUserLoans = createAsyncThunk(
   "user/getUserLoans",
   async (_, { rejectWithValue }) => {
@@ -129,6 +145,22 @@ export const deleteLoan = createAsyncThunk(
   },
 );
 
+export const changePassword = createAsyncThunk(
+  "user/changePassword",
+  async (passwordData, { rejectWithValue }) => {
+    try {
+      const response = await userService.changePassword(passwordData);
+      toast.success("Password changed successfully");
+      return response;
+    } catch (error) {
+      const message =
+        error.response?.data?.message || "Failed to change password";
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  },
+);
+
 const userSlice = createSlice({
   name: "user",
   initialState,
@@ -174,6 +206,19 @@ const userSlice = createSlice({
         state.loading = false;
       })
       .addCase(uploadPhoto.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Delete Photo
+      .addCase(deletePhoto.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deletePhoto.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(deletePhoto.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
@@ -269,4 +314,5 @@ export const {
   clearCurrentLoan,
   clearError,
 } = userSlice.actions;
+
 export default userSlice.reducer;

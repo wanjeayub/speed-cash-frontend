@@ -2,24 +2,59 @@ import api from "./api";
 
 class AuthService {
   async login(credentials) {
-    const response = await api.post("/auth/login", credentials);
-    return response.data;
+    try {
+      console.log("Attempting login with:", credentials.email);
+      const response = await api.post("/auth/login", credentials);
+      console.log("Login response:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Login service error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      throw error;
+    }
   }
 
   async register(userData) {
-    const response = await api.post("/auth/register", userData);
-    return response.data;
+    try {
+      const response = await api.post("/auth/register", userData);
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Register service error:",
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
   }
 
   async googleLogin(userData) {
-    console.log("Sending Google login data:", userData); // Debug log
-    const response = await api.post("/auth/google", userData);
-    return response.data;
+    try {
+      console.log("Sending Google login data:", userData);
+      const response = await api.post("/auth/google", userData);
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Google login service error:",
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
   }
 
   async getCurrentUser() {
-    const response = await api.get("/auth/me");
-    return response.data;
+    try {
+      const response = await api.get("/auth/me");
+      return response.data;
+    } catch (error) {
+      console.error(
+        "Get current user error:",
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
   }
 
   logout() {

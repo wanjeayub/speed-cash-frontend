@@ -17,9 +17,16 @@ export const login = createAsyncThunk(
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials);
-      return response;
+      // Check if response has the expected structure
+      if (response.success) {
+        return response;
+      } else {
+        return rejectWithValue(response.message || "Login failed");
+      }
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Login failed");
+      return rejectWithValue(
+        error.response?.data?.message || error.message || "Login failed",
+      );
     }
   },
 );
@@ -29,10 +36,14 @@ export const register = createAsyncThunk(
   async (userData, { rejectWithValue }) => {
     try {
       const response = await authService.register(userData);
-      return response;
+      if (response.success) {
+        return response;
+      } else {
+        return rejectWithValue(response.message || "Registration failed");
+      }
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Registration failed",
+        error.response?.data?.message || error.message || "Registration failed",
       );
     }
   },
@@ -43,10 +54,14 @@ export const googleLogin = createAsyncThunk(
   async (userData, { rejectWithValue }) => {
     try {
       const response = await authService.googleLogin(userData);
-      return response;
+      if (response.success) {
+        return response;
+      } else {
+        return rejectWithValue(response.message || "Google login failed");
+      }
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Google login failed",
+        error.response?.data?.message || error.message || "Google login failed",
       );
     }
   },
@@ -57,10 +72,14 @@ export const getCurrentUser = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await authService.getCurrentUser();
-      return response;
+      if (response.success) {
+        return response;
+      } else {
+        return rejectWithValue(response.message || "Failed to get user");
+      }
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || "Failed to get user",
+        error.response?.data?.message || error.message || "Failed to get user",
       );
     }
   },
@@ -97,12 +116,10 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         localStorage.setItem("token", action.payload.token);
         localStorage.setItem("user", JSON.stringify(action.payload.user));
-        toast.success("Login successful!");
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        toast.error(action.payload);
       })
       // Register
       .addCase(register.pending, (state) => {
@@ -116,12 +133,10 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         localStorage.setItem("token", action.payload.token);
         localStorage.setItem("user", JSON.stringify(action.payload.user));
-        toast.success("Registration successful!");
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        toast.error(action.payload);
       })
       // Google Login
       .addCase(googleLogin.pending, (state) => {
@@ -135,12 +150,10 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         localStorage.setItem("token", action.payload.token);
         localStorage.setItem("user", JSON.stringify(action.payload.user));
-        toast.success("Google login successful!");
       })
       .addCase(googleLogin.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        toast.error(action.payload);
       })
       // Get Current User
       .addCase(getCurrentUser.fulfilled, (state, action) => {
