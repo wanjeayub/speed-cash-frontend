@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import userService from "../../services/user.service";
+import { getCurrentUser } from "./authSlice"; // Import this to refresh user data
 import toast from "react-hot-toast";
 
 const initialState = {
@@ -12,9 +13,11 @@ const initialState = {
 
 export const updateProfile = createAsyncThunk(
   "user/updateProfile",
-  async (profileData, { rejectWithValue }) => {
+  async (profileData, { rejectWithValue, dispatch }) => {
     try {
       const response = await userService.updateProfile(profileData);
+      // Refresh user data after profile update
+      await dispatch(getCurrentUser());
       toast.success("Profile updated successfully");
       return response;
     } catch (error) {
@@ -39,6 +42,9 @@ export const uploadPhoto = createAsyncThunk(
         dispatch(clearUploadProgress(type));
       }, 1000);
 
+      // Refresh user data to get updated photos
+      await dispatch(getCurrentUser());
+
       toast.success(
         `${type === "profile" ? "Profile" : "ID"} photo uploaded successfully`,
       );
@@ -47,8 +53,9 @@ export const uploadPhoto = createAsyncThunk(
     } catch (error) {
       // Clear progress on error
       dispatch(clearUploadProgress(type));
-      toast.error(error.response?.data?.message || "Upload failed");
-      return rejectWithValue(error.response?.data?.message || "Upload failed");
+      const message = error.response?.data?.message || "Upload failed";
+      toast.error(message);
+      return rejectWithValue(message);
     }
   },
 );
@@ -75,9 +82,9 @@ export const applyForLoan = createAsyncThunk(
       toast.success("Loan application submitted successfully");
       return response;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message || "Application failed",
-      );
+      const message = error.response?.data?.message || "Application failed";
+      toast.error(message);
+      return rejectWithValue(message);
     }
   },
 );
@@ -106,29 +113,29 @@ const userSlice = createSlice({
       })
       .addCase(updateProfile.fulfilled, (state, action) => {
         state.loading = false;
-        state.profile = action.payload.user;
+        if (action.payload?.user) {
+          state.profile = action.payload.user;
+        }
       })
       .addCase(updateProfile.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        toast.error(action.payload);
       })
+
       // Upload Photo
       .addCase(uploadPhoto.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(uploadPhoto.fulfilled, (state, action) => {
+      .addCase(uploadPhoto.fulfilled, (state) => {
         state.loading = false;
-        if (state.profile) {
-          state.profile[action.payload.type] = action.payload.photo;
-        }
+        // Don't update local state here - let getCurrentUser handle it
       })
       .addCase(uploadPhoto.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        toast.error(action.payload);
       })
+
       // Get User Loans
       .addCase(getUserLoans.pending, (state) => {
         state.loading = true;
@@ -136,12 +143,13 @@ const userSlice = createSlice({
       })
       .addCase(getUserLoans.fulfilled, (state, action) => {
         state.loading = false;
-        state.loans = action.payload.loans;
+        state.loans = action.payload.loans || [];
       })
       .addCase(getUserLoans.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+
       // Apply for Loan
       .addCase(applyForLoan.pending, (state) => {
         state.loading = true;
@@ -149,7 +157,9 @@ const userSlice = createSlice({
       })
       .addCase(applyForLoan.fulfilled, (state, action) => {
         state.loading = false;
-        state.loans = [action.payload.loan, ...state.loans];
+        if (action.payload?.loan) {
+          state.loans = [action.payload.loan, ...state.loans];
+        }
       })
       .addCase(applyForLoan.rejected, (state, action) => {
         state.loading = false;
