@@ -25,8 +25,8 @@ const Footer = () => {
 
   const legalLinks = [
     { name: "Terms & Conditions", path: "/terms" },
-    { name: "Privacy Policy", path: "/privacy" },
-    { name: "Cookie Policy", path: "/cookies" },
+    { name: "Privacy Policy", path: "/privacy-policy" },
+    { name: "Cookie Policy", path: "/cookie-policy" },
     { name: "Data Protection", path: "/data-protection" },
     { name: "Complaints", path: "/complaints" },
   ];
