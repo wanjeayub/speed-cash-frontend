@@ -54,7 +54,7 @@ const Home = () => {
       name: "John Mwangi",
       role: "Small Business Owner",
       content:
-        "Speedy Cash helped me grow my business when I needed it most. The process was quick and hassle-free.",
+        "Speed- Cash helped me grow my business when I needed it most. The process was quick and hassle-free.",
       rating: 5,
       image: "https://randomuser.me/api/portraits/men/1.jpg",
     },
@@ -62,7 +62,7 @@ const Home = () => {
       name: "Sarah Kimani",
       role: "Teacher",
       content:
-        "I needed emergency funds for school fees. Speedy Cash came through within hours. Highly recommended!",
+        "I needed emergency funds for school fees. Speed- Cash came through within hours. Highly recommended!",
       rating: 5,
       image: "https://randomuser.me/api/portraits/women/2.jpg",
     },
@@ -102,10 +102,10 @@ const Home = () => {
   return (
     <>
       <Helmet>
-        <title>Speedy Cash Solutions - Fast & Reliable Loans in Kenya</title>
+        <title>Speed- Cash Solutions - Fast & Reliable Loans in Kenya</title>
         <meta
           name="description"
-          content="Get quick loans in Kenya with Speedy Cash Solutions. Fast approval, competitive rates, and excellent customer service. Apply online today!"
+          content="Get quick loans in Kenya with Speed- Cash Solutions. Fast approval, competitive rates, and excellent customer service. Apply online today!"
         />
       </Helmet>
 
@@ -196,7 +196,7 @@ const Home = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
-                Why Choose Speedy Cash?
+                Why Choose Speed- Cash?
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
                 We make borrowing simple, transparent, and accessible to
@@ -311,7 +311,7 @@ const Home = () => {
               Ready to Get Started?
             </h2>
             <p className="text-xl text-primary-100 mb-8">
-              Join thousands of Kenyans who trust Speedy Cash for their
+              Join thousands of Kenyans who trust Speed- Cash for their
               financial needs
             </p>
             {!isAuthenticated ? (

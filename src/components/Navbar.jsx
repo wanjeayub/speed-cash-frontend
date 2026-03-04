@@ -59,7 +59,7 @@ const Navbar = () => {
                 scrolled ? "text-primary-600" : "text-white"
               }`}
             >
-              SpeedyCash
+              Speed-Cash
             </span>
             <span
               className={`text-xs px-2 py-1 rounded ${

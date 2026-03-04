@@ -244,14 +244,14 @@ const Register = () => {
   return (
     <>
       <Helmet>
-        <title>Register - Speedy Cash Solutions</title>
+        <title>Register - Speed- Cash Solutions</title>
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-8">
           {/* Logo */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-primary-600">SpeedyCash</h1>
+            <h1 className="text-3xl font-bold text-primary-600">Speed-Cash</h1>
             <p className="text-gray-600 mt-2">Solutions</p>
           </div>
 

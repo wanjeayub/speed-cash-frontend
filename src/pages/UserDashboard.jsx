@@ -918,7 +918,7 @@ const UserDashboard = () => {
   return (
     <>
       <Helmet>
-        <title>Dashboard - Speedy Cash Solutions</title>
+        <title>Dashboard - Speed- Cash Solutions</title>
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 flex">
@@ -932,7 +932,7 @@ const UserDashboard = () => {
           <div className="h-16 flex items-center justify-between px-4 border-b">
             {sidebarOpen ? (
               <span className="text-xl font-bold text-primary-600">
-                SpeedyCash
+                Speed-Cash
               </span>
             ) : (
               <span className="text-2xl font-bold text-primary-600 mx-auto">

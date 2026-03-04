@@ -771,7 +771,7 @@ const AdminDashboard = () => {
                       {new Date(admin.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {admin.email !== "admin@speedycash.com" && (
+                      {admin.email !== "admin@speed-cash.com" && (
                         <button
                           onClick={() => handleDemoteFromAdmin(admin._id)}
                           className="text-red-600 hover:text-red-900"
@@ -1149,7 +1149,7 @@ const AdminDashboard = () => {
   return (
     <>
       <Helmet>
-        <title>Admin Dashboard - Speedy Cash Solutions</title>
+        <title>Admin Dashboard - Speed- Cash Solutions</title>
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 flex">
@@ -1164,7 +1164,7 @@ const AdminDashboard = () => {
             {sidebarOpen ? (
               <div>
                 <span className="text-xl font-bold text-primary-600">
-                  SpeedyCash
+                  Speed-Cash
                 </span>
                 <span className="block text-xs text-gray-500">Admin</span>
               </div>

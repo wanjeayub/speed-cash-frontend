@@ -42,8 +42,8 @@ const Footer = () => {
     { icon: FiPhone, text: "+254 700 123 456", href: "tel:+254700123456" },
     {
       icon: FiMail,
-      text: "info@speedycash.co.ke",
-      href: "mailto:info@speedycash.co.ke",
+      text: "info@speed-cash.co.ke",
+      href: "mailto:info@speed-cash.co.ke",
     },
     { icon: FiMapPin, text: "Nairobi, Kenya", href: "https://maps.google.com" },
     { icon: FiClock, text: "Mon-Fri: 8am - 6pm" },
@@ -57,7 +57,7 @@ const Footer = () => {
           {/* Company Info */}
           <div>
             <h3 className="text-white text-lg font-semibold mb-4">
-              Speedy Cash Solutions
+              Speed- Cash Solutions
             </h3>
             <p className="text-sm mb-4">
               Your trusted partner for fast, secure, and reliable loans in
@@ -176,7 +176,7 @@ const Footer = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center text-sm">
             <p className="text-gray-400">
-              © {currentYear} Speedy Cash Solutions. All rights reserved.
+              © {currentYear} Speed- Cash Solutions. All rights reserved.
             </p>
             <div className="flex space-x-6 mt-2 md:mt-0">
               <Link to="/privacy" className="text-gray-400 hover:text-white">

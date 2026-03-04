@@ -137,7 +137,7 @@ const Login = () => {
     <>
       <Helmet>
         <title>
-          {isAdminLogin ? "Admin Login" : "Login"} - Speedy Cash Solutions
+          {isAdminLogin ? "Admin Login" : "Login"} - Speed- Cash Solutions
         </title>
       </Helmet>
 
@@ -145,7 +145,7 @@ const Login = () => {
         <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
           {/* Logo */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-primary-600">SpeedyCash</h1>
+            <h1 className="text-3xl font-bold text-primary-600">Speed-Cash</h1>
             <p className="text-gray-600 mt-2">Solutions</p>
           </div>
 
