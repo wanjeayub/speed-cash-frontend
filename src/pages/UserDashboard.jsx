@@ -9,6 +9,7 @@ import {
 } from "../store/slices/userSlice";
 import { useSelector, useDispatch } from "react-redux";
 import { Helmet } from "react-helmet-async";
+import { FiCopy, FiArrowRight, FiInfo } from "react-icons/fi";
 import {
   FiHome,
   FiUser,
@@ -238,6 +239,75 @@ const UserDashboard = () => {
               </p>
             </div>
 
+            {/* Payment Information Card */}
+            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold mb-3">
+                    Make Loan Repayment
+                  </h2>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-white/20 p-2 rounded-lg">
+                        <FiCreditCard className="text-white" size={20} />
+                      </div>
+                      <div>
+                        <p className="text-sm text-green-100">Paybill Number</p>
+                        <p className="text-2xl font-bold tracking-wider">
+                          522522
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-white/20 p-2 rounded-lg">
+                        <FiUser className="text-white" size={20} />
+                      </div>
+                      <div>
+                        <p className="text-sm text-green-100">Account Number</p>
+                        <p className="text-2xl font-bold tracking-wider">
+                          1295809656
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Copy Buttons */}
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText("522522");
+                      toast.success("Paybill number copied!");
+                    }}
+                    className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-colors"
+                    title="Copy Paybill Number"
+                  >
+                    <FiCopy size={20} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText("1295809656");
+                      toast.success("Account number copied!");
+                    }}
+                    className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-colors"
+                    title="Copy Account Number"
+                  >
+                    <FiCopy size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="mt-4 pt-4 border-t border-white/20">
+                <p className="text-sm text-green-100 flex items-center">
+                  <FiInfo className="mr-2" size={16} />
+                  Go to M-PESA, select Paybill, enter 522522, account
+                  1295809656, and the loan amount
+                </p>
+              </div>
+            </div>
+
             {/* Profile Completion Progress */}
             {!canApplyForLoan && (
               <ProfileCompletion
@@ -294,41 +364,94 @@ const UserDashboard = () => {
               <div className="bg-white rounded-xl p-6 shadow-sm">
                 <h2 className="text-xl font-semibold mb-4">Recent Loans</h2>
                 <div className="space-y-4">
-                  {loans.slice(0, 3).map((loan) => (
-                    <div
-                      key={loan._id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">Loan #{loan.loanNumber}</p>
-                        <p className="text-sm text-gray-600">
-                          Amount: KES {loan.amount?.toLocaleString() || 0}
-                        </p>
-                      </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          loan.status === "approved"
-                            ? "bg-green-100 text-green-800"
-                            : loan.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : loan.status === "rejected"
-                                ? "bg-red-100 text-red-800"
-                                : loan.status === "paid"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-gray-100 text-gray-800"
-                        }`}
+                  {loans.slice(0, 3).map((loan) => {
+                    const totalRepayment =
+                      loan.totalAmount ||
+                      loan.amount +
+                        (loan.amount * (loan.interestRate || 10)) / 100;
+                    const remainingBalance =
+                      totalRepayment - (loan.amountPaid || 0);
+
+                    return (
+                      <div
+                        key={loan._id}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
                       >
-                        {loan.status?.charAt(0).toUpperCase() +
-                          loan.status?.slice(1)}
-                      </span>
-                    </div>
-                  ))}
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3">
+                            <p className="font-medium">
+                              Loan #{loan.loanNumber}
+                            </p>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                loan.status === "approved"
+                                  ? "bg-green-100 text-green-800"
+                                  : loan.status === "pending"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : loan.status === "rejected"
+                                      ? "bg-red-100 text-red-800"
+                                      : loan.status === "paid"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : loan.status === "partial"
+                                          ? "bg-purple-100 text-purple-800"
+                                          : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              {loan.status?.charAt(0).toUpperCase() +
+                                loan.status?.slice(1)}
+                            </span>
+                          </div>
+                          <div className="mt-2 grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <p className="text-gray-500">Amount</p>
+                              <p className="font-medium">
+                                KES {loan.amount?.toLocaleString() || 0}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Paid</p>
+                              <p className="font-medium text-green-600">
+                                KES {loan.amountPaid?.toLocaleString() || 0}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500">Balance</p>
+                              <p className="font-medium text-orange-600">
+                                KES {remainingBalance.toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          {loan.dueDate && loan.status !== "paid" && (
+                            <p className="text-xs text-gray-500 mt-2">
+                              Due: {new Date(loan.dueDate).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleViewLoanDetails(loan._id)}
+                          className="ml-4 p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          title="View Details"
+                        >
+                          <FiInfo size={20} />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {loans.length > 3 && (
+                  <button
+                    onClick={() => setActiveTab("loans")}
+                    className="mt-4 text-primary-600 hover:text-primary-700 font-medium text-sm flex items-center"
+                  >
+                    View all loans
+                    <FiArrowRight className="ml-1" size={16} />
+                  </button>
+                )}
               </div>
             )}
           </div>
         );
-
       case "profile":
         return (
           <div className="max-w-2xl mx-auto space-y-6">
