@@ -39,7 +39,7 @@ const Footer = () => {
   ];
 
   const contactInfo = [
-    { icon: FiPhone, text: "+254 700 123 456", href: "tel:+254700123456" },
+    { icon: FiPhone, text: "+254 710 873 082", href: "tel:+254710873082" },
     {
       icon: FiMail,
       text: "info@speed-cash.co.ke",

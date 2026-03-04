@@ -15,6 +15,13 @@ import Register from "./pages/Register";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 
+// Import the new pages
+import TermsConditions from "./pages/TermsConditions";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import CookiePolicy from "./pages/CookiePolicy";
+import DataProtection from "./pages/DataProtection";
+import Complaints from "./pages/Complaints";
+
 // Components
 import PrivateRoute from "./components/PrivateRoute";
 import LoadingSpinner from "./components/LoadingSpinner";
@@ -41,6 +48,11 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/admin/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/terms" element={<TermsConditions />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/cookie-policy" element={<CookiePolicy />} />
+            <Route path="/data-protection" element={<DataProtection />} />
+            <Route path="/complaints" element={<Complaints />} />
 
             {/* Protected User Routes */}
             <Route
