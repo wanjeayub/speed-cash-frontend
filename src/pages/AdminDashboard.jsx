@@ -38,6 +38,7 @@ import {
   processPayment,
 } from "../store/slices/adminSlice";
 
+import InstallmentScheduleModal from "../components/InstallmentScheduleModal";
 import adminService from "../services/admin.service";
 import CreateAdminModal from "../components/CreateAdminModal";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -84,6 +85,9 @@ const AdminDashboard = () => {
     start: "",
     end: "",
   });
+
+  const [showInstallmentSchedule, setShowInstallmentSchedule] = useState(false);
+  const [selectedInstallmentLoan, setSelectedInstallmentLoan] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -643,10 +647,6 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
-    const [showInstallmentSchedule, setShowInstallmentSchedule] =
-      useState(false);
-    const [selectedInstallmentLoan, setSelectedInstallmentLoan] =
-      useState(null);
 
     useEffect(() => {
       fetchAdmins();
