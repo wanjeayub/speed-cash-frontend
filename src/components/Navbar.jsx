@@ -36,6 +36,7 @@ const Navbar = () => {
     dispatch(logout());
     navigate("/");
     setDropdownOpen(false);
+    setIsOpen(false);
   };
 
   const navLinks = [
@@ -43,6 +44,11 @@ const Navbar = () => {
     { name: "About", path: "/about", icon: FiInfo },
     { name: "Contact", path: "/contact", icon: FiPhone },
   ];
+
+  // Close mobile menu when clicking a link
+  const handleMobileLinkClick = () => {
+    setIsOpen(false);
+  };
 
   return (
     <nav
@@ -59,7 +65,7 @@ const Navbar = () => {
                 scrolled ? "text-primary-600" : "text-white"
               }`}
             >
-              Speed-Cash
+              SpeedyCash
             </span>
             <span
               className={`text-xs px-2 py-1 rounded ${
@@ -192,7 +198,7 @@ const Navbar = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className={`md:hidden p-2 rounded-lg ${
+            className={`md:hidden p-2 rounded-lg z-50 ${
               scrolled ? "text-gray-700" : "text-white"
             }`}
           >
@@ -200,23 +206,19 @@ const Navbar = () => {
           </button>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation - Fixed with solid background */}
         {isOpen && (
-          <div className="md:hidden mt-4 pb-4">
+          <div className="md:hidden fixed inset-x-0 top-16 bg-white shadow-xl rounded-b-2xl py-4 px-4 border-t z-40">
             <div className="flex flex-col space-y-2">
               {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   to={link.path}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium ${
-                    scrolled
-                      ? "text-gray-700 hover:bg-gray-100"
-                      : "text-white hover:bg-white/10"
-                  }`}
-                  onClick={() => setIsOpen(false)}
+                  className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                  onClick={handleMobileLinkClick}
                 >
-                  <link.icon />
-                  <span>{link.name}</span>
+                  <link.icon className="text-lg" />
+                  <span className="font-medium">{link.name}</span>
                 </Link>
               ))}
 
@@ -224,15 +226,11 @@ const Navbar = () => {
               {!isAuthenticated && (
                 <Link
                   to="/admin/login"
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium ${
-                    scrolled
-                      ? "text-gray-700 hover:bg-gray-100"
-                      : "text-white hover:bg-white/10"
-                  }`}
-                  onClick={() => setIsOpen(false)}
+                  className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                  onClick={handleMobileLinkClick}
                 >
-                  <FiShield />
-                  <span>Admin Login</span>
+                  <FiShield className="text-lg" />
+                  <span className="font-medium">Admin Login</span>
                 </Link>
               )}
 
@@ -240,52 +238,33 @@ const Navbar = () => {
                 <>
                   <Link
                     to={user?.role === "admin" ? "/admin" : "/dashboard"}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium ${
-                      scrolled
-                        ? "text-gray-700 hover:bg-gray-100"
-                        : "text-white hover:bg-white/10"
-                    }`}
-                    onClick={() => setIsOpen(false)}
+                    className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                    onClick={handleMobileLinkClick}
                   >
                     <FiUser />
                     <span>Dashboard</span>
                   </Link>
                   <button
-                    onClick={() => {
-                      handleLogout();
-                      setIsOpen(false);
-                    }}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium ${
-                      scrolled
-                        ? "text-red-600 hover:bg-gray-100"
-                        : "text-white hover:bg-white/10"
-                    }`}
+                    onClick={handleLogout}
+                    className="flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors w-full text-left"
                   >
                     <FiLogOut />
                     <span>Logout</span>
                   </button>
                 </>
               ) : (
-                <div className="flex flex-col space-y-2 pt-2">
+                <div className="flex flex-col space-y-2 pt-4 border-t mt-2">
                   <Link
                     to="/login"
-                    className={`px-4 py-2 rounded-lg font-medium text-center ${
-                      scrolled
-                        ? "bg-gray-200 text-gray-800"
-                        : "bg-white/20 text-white"
-                    }`}
-                    onClick={() => setIsOpen(false)}
+                    className="px-4 py-3 bg-primary-600 text-white rounded-lg font-medium text-center hover:bg-primary-700 transition-colors"
+                    onClick={handleMobileLinkClick}
                   >
                     Sign In
                   </Link>
                   <Link
                     to="/register"
-                    className={`px-4 py-2 rounded-lg font-medium text-center ${
-                      scrolled
-                        ? "bg-primary-600 text-white"
-                        : "bg-white text-primary-600"
-                    }`}
-                    onClick={() => setIsOpen(false)}
+                    className="px-4 py-3 border-2 border-primary-600 text-primary-600 rounded-lg font-medium text-center hover:bg-primary-50 transition-colors"
+                    onClick={handleMobileLinkClick}
                   >
                     Get Started
                   </Link>
