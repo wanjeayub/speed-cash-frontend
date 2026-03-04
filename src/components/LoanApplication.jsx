@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiX, FiInfo } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
+import api from "../services/api"; // Import your API service
 
 const LoanApplication = ({ onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
@@ -12,41 +13,93 @@ const LoanApplication = ({ onClose, onSubmit }) => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [errors, setErrors] = useState({});
   const [calculation, setCalculation] = useState(null);
+  const [loanSettings, setLoanSettings] = useState({
+    oneMonthLoan: {
+      interestRate: 10,
+      minAmount: 100,
+      maxAmount: 1000000,
+      loanTermDays: 30,
+    },
+    installmentLoan: {
+      interestRate: 20,
+      minAmount: 1000,
+      maxAmount: 1000000,
+      minTenure: 2,
+      maxTenure: 4,
+    },
+  });
 
-  // Calculate loan details based on product type
+  // Fetch loan settings from admin
+  useEffect(() => {
+    fetchLoanSettings();
+  }, []);
+
+  const fetchLoanSettings = async () => {
+    try {
+      setSettingsLoading(true);
+      const response = await api.get("/admin/settings");
+      if (response.data.success) {
+        setLoanSettings(response.data.settings.loanSettings);
+        // Set default tenure based on settings
+        setFormData((prev) => ({
+          ...prev,
+          tenureMonths:
+            response.data.settings.loanSettings.installmentLoan.maxTenure || 4,
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching loan settings:", error);
+      toast.error("Failed to load loan settings. Using default values.");
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  // Calculate loan details based on product type and admin settings
   const calculateLoan = () => {
     const amount = parseFloat(formData.amount) || 0;
+    const minAmount =
+      formData.productType === "one_month"
+        ? loanSettings.oneMonthLoan.minAmount
+        : loanSettings.installmentLoan.minAmount;
 
-    if (amount < 100) return null;
+    if (amount < minAmount) return null;
 
     if (formData.productType === "one_month") {
-      const interest = amount * 0.1; // 10% interest
+      const interestRate = loanSettings.oneMonthLoan.interestRate / 100;
+      const interest = amount * interestRate;
       const total = amount + interest;
 
       return {
         type: "One Month Loan",
-        interestRate: "10%",
+        interestRate: `${loanSettings.oneMonthLoan.interestRate}%`,
         totalRepayment: total,
         interestAmount: interest,
         breakdown: [
           { label: "Principal", amount },
-          { label: "Interest (10%)", amount: interest },
+          {
+            label: `Interest (${loanSettings.oneMonthLoan.interestRate}%)`,
+            amount: interest,
+          },
           { label: "Total Repayment", amount: total, highlight: true },
         ],
+        termDays: loanSettings.oneMonthLoan.loanTermDays,
       };
     } else {
       // Installment loan with reducing balance
       const tenure = formData.tenureMonths;
-      const monthlyInterest = 0.2; // 20% annual? Clarify with user
+      const monthlyInterestRate =
+        loanSettings.installmentLoan.interestRate / 100;
       const monthlyPrincipal = amount / tenure;
       let remainingBalance = amount;
       const schedule = [];
       let totalRepayment = 0;
 
       for (let i = 1; i <= tenure; i++) {
-        const interestPortion = remainingBalance * monthlyInterest;
+        const interestPortion = remainingBalance * monthlyInterestRate;
         const principalPortion = monthlyPrincipal;
         const installmentTotal = principalPortion + interestPortion;
 
@@ -59,12 +112,12 @@ const LoanApplication = ({ onClose, onSubmit }) => {
         });
 
         totalRepayment += installmentTotal;
-        remainingBalance -= principalPortion;
+        remainingBalance -= monthlyPrincipal;
       }
 
       return {
         type: `${tenure} Month Installment Loan`,
-        interestRate: "20% (reducing balance)",
+        interestRate: `${loanSettings.installmentLoan.interestRate}% (reducing balance)`,
         totalRepayment,
         interestAmount: totalRepayment - amount,
         schedule,
@@ -78,21 +131,49 @@ const LoanApplication = ({ onClose, onSubmit }) => {
   };
 
   // Update calculation when inputs change
-  React.useEffect(() => {
-    if (formData.amount >= 100) {
+  useEffect(() => {
+    const minAmount =
+      formData.productType === "one_month"
+        ? loanSettings.oneMonthLoan.minAmount
+        : loanSettings.installmentLoan.minAmount;
+
+    if (formData.amount >= minAmount) {
       setCalculation(calculateLoan());
     } else {
       setCalculation(null);
     }
-  }, [formData.amount, formData.productType, formData.tenureMonths]);
+  }, [
+    formData.amount,
+    formData.productType,
+    formData.tenureMonths,
+    loanSettings,
+  ]);
 
   const validate = () => {
     const newErrors = {};
+    const amount = parseFloat(formData.amount);
+    const minAmount =
+      formData.productType === "one_month"
+        ? loanSettings.oneMonthLoan.minAmount
+        : loanSettings.installmentLoan.minAmount;
+    const maxAmount =
+      formData.productType === "one_month"
+        ? loanSettings.oneMonthLoan.maxAmount
+        : loanSettings.installmentLoan.maxAmount;
 
-    if (!formData.amount || formData.amount < 100) {
-      newErrors.amount = "Amount must be at least KES 100";
-    } else if (formData.amount > 1000000) {
-      newErrors.amount = "Amount cannot exceed KES 1,000,000";
+    if (!formData.amount || amount < minAmount) {
+      newErrors.amount = `Amount must be at least KES ${minAmount.toLocaleString()}`;
+    } else if (amount > maxAmount) {
+      newErrors.amount = `Amount cannot exceed KES ${maxAmount.toLocaleString()}`;
+    }
+
+    if (formData.productType === "installment") {
+      if (
+        formData.tenureMonths < loanSettings.installmentLoan.minTenure ||
+        formData.tenureMonths > loanSettings.installmentLoan.maxTenure
+      ) {
+        newErrors.tenure = `Tenure must be between ${loanSettings.installmentLoan.minTenure} and ${loanSettings.installmentLoan.maxTenure} months`;
+      }
     }
 
     setErrors(newErrors);
@@ -107,7 +188,10 @@ const LoanApplication = ({ onClose, onSubmit }) => {
         const loanData = {
           amount: parseFloat(formData.amount),
           productType: formData.productType,
-          purpose: formData.purpose?.trim() || "Personal use",
+          purpose:
+            formData.purpose?.trim() ||
+            loanSettings.defaultLoanPurpose ||
+            "Personal use",
         };
 
         if (formData.productType === "installment") {
@@ -125,6 +209,26 @@ const LoanApplication = ({ onClose, onSubmit }) => {
       }
     }
   };
+
+  if (settingsLoading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl max-w-2xl w-full p-8 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading loan products...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const minAmount =
+    formData.productType === "one_month"
+      ? loanSettings.oneMonthLoan.minAmount
+      : loanSettings.installmentLoan.minAmount;
+  const maxAmount =
+    formData.productType === "one_month"
+      ? loanSettings.oneMonthLoan.maxAmount
+      : loanSettings.installmentLoan.maxAmount;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -179,10 +283,12 @@ const LoanApplication = ({ onClose, onSubmit }) => {
                   <div>
                     <h3 className="font-semibold">One Month Loan</h3>
                     <p className="text-sm text-gray-600">
-                      10% interest, repay in 30 days
+                      {loanSettings.oneMonthLoan.interestRate}% interest, repay
+                      in {loanSettings.oneMonthLoan.loanTermDays} days
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Simple interest, one payment
+                      Simple interest, one payment • Min: KES{" "}
+                      {minAmount.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -220,10 +326,13 @@ const LoanApplication = ({ onClose, onSubmit }) => {
                   <div>
                     <h3 className="font-semibold">Installment Loan</h3>
                     <p className="text-sm text-gray-600">
-                      20% interest, flexible tenure
+                      {loanSettings.installmentLoan.interestRate}% interest,
+                      reducing balance
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Reducing balance, monthly payments
+                      Monthly payments •{" "}
+                      {loanSettings.installmentLoan.minTenure}-
+                      {loanSettings.installmentLoan.maxTenure} months
                     </p>
                   </div>
                 </div>
@@ -245,12 +354,25 @@ const LoanApplication = ({ onClose, onSubmit }) => {
                     tenureMonths: parseInt(e.target.value),
                   })
                 }
-                className="input-field"
+                className={`input-field ${errors.tenure ? "border-red-500" : ""}`}
               >
-                <option value={2}>2 Months</option>
-                <option value={3}>3 Months</option>
-                <option value={4}>4 Months</option>
+                {Array.from(
+                  {
+                    length:
+                      loanSettings.installmentLoan.maxTenure -
+                      loanSettings.installmentLoan.minTenure +
+                      1,
+                  },
+                  (_, i) => i + loanSettings.installmentLoan.minTenure,
+                ).map((months) => (
+                  <option key={months} value={months}>
+                    {months} Months
+                  </option>
+                ))}
               </select>
+              {errors.tenure && (
+                <p className="mt-1 text-sm text-red-600">{errors.tenure}</p>
+              )}
             </div>
           )}
 
@@ -266,9 +388,9 @@ const LoanApplication = ({ onClose, onSubmit }) => {
                 setFormData({ ...formData, amount: e.target.value })
               }
               className={`input-field ${errors.amount ? "border-red-500" : ""}`}
-              placeholder="Enter amount"
-              min="100"
-              max="1000000"
+              placeholder={`Enter amount (Min: KES ${minAmount.toLocaleString()})`}
+              min={minAmount}
+              max={maxAmount}
               step="100"
               required
               disabled={loading}
@@ -276,6 +398,10 @@ const LoanApplication = ({ onClose, onSubmit }) => {
             {errors.amount && (
               <p className="mt-1 text-sm text-red-600">{errors.amount}</p>
             )}
+            <p className="mt-1 text-xs text-gray-500">
+              Min: KES {minAmount.toLocaleString()} | Max: KES{" "}
+              {maxAmount.toLocaleString()}
+            </p>
           </div>
 
           {/* Loan Calculation Display */}
@@ -347,7 +473,8 @@ const LoanApplication = ({ onClose, onSubmit }) => {
                     </table>
                   </div>
                   <p className="text-xs text-gray-600 mt-2">
-                    * Interest calculated on reducing balance
+                    * Interest calculated on reducing balance at{" "}
+                    {loanSettings.installmentLoan.interestRate}% per month
                   </p>
                 </div>
               )}
@@ -381,7 +508,7 @@ const LoanApplication = ({ onClose, onSubmit }) => {
                   Terms and Conditions
                 </Link>
                 . Late payments may affect your credit score and result in
-                additional fees.
+                additional fees of {loanSettings.latePaymentPenalty || 5}%.
               </p>
             </div>
           </div>
@@ -398,7 +525,7 @@ const LoanApplication = ({ onClose, onSubmit }) => {
             <button
               type="submit"
               className="btn-primary flex-1 py-3"
-              disabled={loading || !calculation}
+              disabled={loading || !calculation || settingsLoading}
             >
               {loading ? "Submitting..." : "Submit Application"}
             </button>
