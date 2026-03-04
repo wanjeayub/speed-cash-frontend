@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Helmet } from "react-helmet-async";
+
 import {
   FiUsers,
   FiCreditCard,
@@ -23,6 +24,8 @@ import {
   FiEye,
   FiArrowUp,
   FiArrowDown,
+  FiShield,
+  FiUserPlus,
 } from "react-icons/fi";
 import { logout } from "../store/slices/authSlice";
 import {
@@ -39,6 +42,7 @@ import UserDetailsModal from "../components/UserDetailsModal";
 import PaymentModal from "../components/PaymentModal";
 import LoanStats from "../components/LoanStats";
 import CreditScoreGauge from "../components/CreditsScoreGauge";
+import AdminSettings from "../components/AdminSettings";
 import {
   LineChart,
   Line,
@@ -116,6 +120,100 @@ const AdminDashboard = () => {
     setShowUserModal(true);
   };
 
+  const handleExport = async (type, data) => {
+    try {
+      let exportData;
+      let filename;
+      let headers;
+
+      switch (type) {
+        case "users":
+          exportData = users;
+          filename = `users-export-${new Date().toISOString().split("T")[0]}.csv`;
+          headers = [
+            "Name",
+            "Email",
+            "ID Number",
+            "Phone",
+            "Status",
+            "Joined Date",
+          ];
+          break;
+        case "loans":
+          exportData = loans;
+          filename = `loans-export-${new Date().toISOString().split("T")[0]}.csv`;
+          headers = [
+            "Loan Number",
+            "Borrower",
+            "Amount",
+            "Status",
+            "Applied Date",
+            "Due Date",
+          ];
+          break;
+        case "stats":
+          exportData = loanStats?.monthly || [];
+          filename = `loan-stats-${new Date().toISOString().split("T")[0]}.csv`;
+          headers = ["Month", "Loan Count", "Total Amount", "Interest"];
+          break;
+        default:
+          return;
+      }
+
+      // Convert to CSV
+      const csvContent = [
+        headers.join(","),
+        ...exportData.map((item) => {
+          if (type === "users") {
+            return [
+              `"${item.firstName} ${item.lastName}"`,
+              item.email,
+              item.idNumber,
+              item.phoneNumbers?.[0]?.number || "",
+              item.isProfileComplete ? "Complete" : "Incomplete",
+              new Date(item.createdAt).toLocaleDateString(),
+            ].join(",");
+          } else if (type === "loans") {
+            return [
+              item.loanNumber,
+              `"${item.user?.firstName} ${item.user?.lastName}"`,
+              item.amount,
+              item.status,
+              new Date(item.applicationDate).toLocaleDateString(),
+              item.dueDate
+                ? new Date(item.dueDate).toLocaleDateString()
+                : "N/A",
+            ].join(",");
+          } else if (type === "stats") {
+            return [
+              item.month || `Month ${item._id}`,
+              item.count || item.totalLoans || 0,
+              item.amount || item.totalAmount || 0,
+              item.interest || item.totalInterest || 0,
+            ].join(",");
+          }
+          return "";
+        }),
+      ].join("\n");
+
+      // Create download link
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`${type} exported successfully`);
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export data");
+    }
+  };
+
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: FiPieChart },
     { id: "users", label: "Users", icon: FiUsers },
@@ -125,6 +223,7 @@ const AdminDashboard = () => {
     { id: "partial", label: "Partial Loans", icon: FiTrendingUp },
     { id: "paid", label: "Paid Loans", icon: FiDollarSign },
     { id: "defaulted", label: "Defaulted", icon: FiAlertCircle },
+    { id: "admins", label: "Admin Management", icon: FiShield },
     { id: "stats", label: "Statistics", icon: FiTrendingUp },
     { id: "settings", label: "Settings", icon: FiSettings },
   ];
@@ -534,6 +633,273 @@ const AdminDashboard = () => {
     </div>
   );
 
+  // Admin Management Component
+  const AdminManagement = () => {
+    const [admins, setAdmins] = useState([]);
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+
+    useEffect(() => {
+      fetchAdmins();
+      fetchUsers();
+    }, []);
+
+    const fetchAdmins = async () => {
+      setLoading(true);
+      try {
+        const response = await adminService.getAllAdmins();
+        setAdmins(response.admins);
+      } catch (error) {
+        console.error("Error fetching admins:", error);
+        toast.error("Failed to fetch admins");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchUsers = async () => {
+      try {
+        const response = await adminService.getAllUsers();
+        setUsers(response.users);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    };
+
+    const handlePromoteToAdmin = async (userId) => {
+      if (
+        !window.confirm("Are you sure you want to promote this user to admin?")
+      )
+        return;
+
+      try {
+        await adminService.promoteToAdmin(userId);
+        toast.success("User promoted to admin successfully");
+        fetchAdmins();
+        fetchUsers();
+      } catch (error) {
+        toast.error(error.response?.data?.message || "Failed to promote user");
+      }
+    };
+
+    const handleDemoteFromAdmin = async (adminId) => {
+      if (
+        !window.confirm(
+          "Are you sure you want to demote this admin? They will lose all admin privileges.",
+        )
+      )
+        return;
+
+      try {
+        await adminService.demoteFromAdmin(adminId);
+        toast.success("Admin demoted successfully");
+        fetchAdmins();
+        fetchUsers();
+      } catch (error) {
+        toast.error(error.response?.data?.message || "Failed to demote admin");
+      }
+    };
+
+    const nonAdminUsers = users.filter(
+      (u) => u.role !== "admin" && u.role !== "superadmin",
+    );
+
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Admin Management</h2>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn-primary flex items-center space-x-2"
+          >
+            <FiUserPlus />
+            <span>Create New Admin</span>
+          </button>
+        </div>
+
+        {/* Current Admins */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="p-6 border-b">
+            <h3 className="text-lg font-semibold">Current Administrators</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Admin
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ID Number
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Created At
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {admins.map((admin) => (
+                  <tr key={admin._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center">
+                          <FiShield className="text-primary-600" />
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {admin.firstName} {admin.lastName}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {admin.email}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {admin.idNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(admin.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {admin.email !== "admin@speedycash.com" && (
+                        <button
+                          onClick={() => handleDemoteFromAdmin(admin._id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Demote to User
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Promote Users Section */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="p-6 border-b">
+            <h3 className="text-lg font-semibold">Promote Users to Admin</h3>
+            <div className="mt-4 relative">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search users by name or email..."
+                className="input-field pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ID Number
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Loans
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {nonAdminUsers
+                  .filter(
+                    (user) =>
+                      user.firstName
+                        ?.toLowerCase()
+                        .includes(searchTerm.toLowerCase()) ||
+                      user.lastName
+                        ?.toLowerCase()
+                        .includes(searchTerm.toLowerCase()) ||
+                      user.email
+                        ?.toLowerCase()
+                        .includes(searchTerm.toLowerCase()) ||
+                      user.idNumber?.includes(searchTerm),
+                  )
+                  .map((user) => (
+                    <tr key={user._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10">
+                            {user.profilePhoto?.url ? (
+                              <img
+                                className="h-10 w-10 rounded-full object-cover"
+                                src={user.profilePhoto.url}
+                                alt=""
+                              />
+                            ) : (
+                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                <FiUser className="text-gray-500" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">
+                              {user.firstName} {user.lastName}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {user.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {user.idNumber}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {user.stats?.totalLoans || 0}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => handlePromoteToAdmin(user._id)}
+                          className="text-primary-600 hover:text-primary-900"
+                        >
+                          Promote to Admin
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Create Admin Modal */}
+        {showCreateModal && (
+          <CreateAdminModal
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={() => {
+              setShowCreateModal(false);
+              fetchAdmins();
+            }}
+          />
+        )}
+      </div>
+    );
+  };
+
   const renderLoansTable = (loansList, showActions = true) => (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
@@ -569,93 +935,105 @@ const AdminDashboard = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {loansList.map((loan) => (
-              <tr key={loan._id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap font-medium">
-                  {loan.loanNumber}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium">
-                    {loan.user?.firstName} {loan.user?.lastName}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {loan.user?.email}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  KES {loan.amount.toLocaleString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  KES {loan.amountPaid?.toLocaleString() || 0}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap font-medium">
-                  KES{" "}
-                  {(loan.totalAmount - (loan.amountPaid || 0)).toLocaleString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {loan.dueDate
-                    ? new Date(loan.dueDate).toLocaleDateString()
-                    : "N/A"}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      loan.status === "approved"
-                        ? "bg-green-100 text-green-800"
-                        : loan.status === "pending"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : loan.status === "rejected"
-                            ? "bg-red-100 text-red-800"
-                            : loan.status === "paid"
-                              ? "bg-blue-100 text-blue-800"
-                              : loan.status === "partial"
-                                ? "bg-purple-100 text-purple-800"
-                                : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {loan.status}
-                  </span>
-                </td>
-                {showActions && (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {loan.status === "pending" && (
-                      <>
-                        <button
-                          onClick={() => handleApproveLoan(loan._id)}
-                          className="text-green-600 hover:text-green-900 mr-3"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleRejectLoan(loan._id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                    {(loan.status === "approved" ||
-                      loan.status === "partial") && (
-                      <button
-                        onClick={() => {
-                          setSelectedLoan(loan);
-                          setShowPaymentModal(true);
-                        }}
-                        className="text-primary-600 hover:text-primary-900"
-                      >
-                        Process Payment
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleViewUser(loan.user?._id)}
-                      className="ml-3 text-gray-600 hover:text-gray-900"
-                    >
-                      <FiEye />
-                    </button>
+            {loansList.map((loan) => {
+              const remainingBalance =
+                loan.totalAmount - (loan.amountPaid || 0);
+              const canProcessPayment = ["approved", "partial"].includes(
+                loan.status,
+              );
+
+              return (
+                <tr key={loan._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap font-medium">
+                    {loan.loanNumber}
                   </td>
-                )}
-              </tr>
-            ))}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium">
+                      {loan.user?.firstName} {loan.user?.lastName}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {loan.user?.email}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    KES {loan.amount?.toLocaleString() || 0}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    KES {loan.amountPaid?.toLocaleString() || 0}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap font-medium">
+                    KES {remainingBalance.toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {loan.dueDate
+                      ? new Date(loan.dueDate).toLocaleDateString()
+                      : "N/A"}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        loan.status === "approved"
+                          ? "bg-green-100 text-green-800"
+                          : loan.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : loan.status === "rejected"
+                              ? "bg-red-100 text-red-800"
+                              : loan.status === "paid"
+                                ? "bg-blue-100 text-blue-800"
+                                : loan.status === "partial"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {loan.status}
+                    </span>
+                  </td>
+                  {showActions && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {loan.status === "pending" && (
+                        <>
+                          <button
+                            onClick={() => handleApproveLoan(loan._id)}
+                            className="text-green-600 hover:text-green-900 mr-3"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectLoan(loan._id)}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {canProcessPayment && (
+                        <button
+                          onClick={() => {
+                            setSelectedLoan(loan);
+                            setShowPaymentModal(true);
+                          }}
+                          className="text-primary-600 hover:text-primary-900 mr-3"
+                        >
+                          Process Payment
+                        </button>
+                      )}
+                      {loan.status === "paid" && (
+                        <span className="text-gray-400 text-sm">
+                          No actions needed
+                        </span>
+                      )}
+                      <button
+                        onClick={() => handleViewUser(loan.user?._id)}
+                        className="text-gray-600 hover:text-gray-900 ml-2"
+                        title="View User Details"
+                      >
+                        <FiEye size={18} />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -748,6 +1126,8 @@ const AdminDashboard = () => {
             {renderLoansTable(defaultedLoans)}
           </div>
         );
+      case "admins":
+        return <AdminManagement />;
       case "stats":
         return (
           <LoanStats
@@ -757,108 +1137,8 @@ const AdminDashboard = () => {
         );
       case "settings":
         return (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-xl p-6 shadow-sm">
-              <h2 className="text-xl font-semibold mb-6">Admin Settings</h2>
-
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium mb-3">
-                    Notification Preferences
-                  </h3>
-                  <div className="space-y-3">
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        className="form-checkbox"
-                        defaultChecked
-                      />
-                      <span>Email notifications for new loan applications</span>
-                    </label>
-                    <label className="flex items-center space-x-3">
-                      <input
-                        type="checkbox"
-                        className="form-checkbox"
-                        defaultChecked
-                      />
-                      <span>Email notifications for payment received</span>
-                    </label>
-                    <label className="flex items-center space-x-3">
-                      <input type="checkbox" className="form-checkbox" />
-                      <span>SMS notifications for urgent matters</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Loan Settings</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Default Interest Rate (%)
-                      </label>
-                      <input
-                        type="number"
-                        className="input-field"
-                        defaultValue="10"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Loan Term (days)
-                      </label>
-                      <input
-                        type="number"
-                        className="input-field"
-                        defaultValue="30"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-medium mb-3">
-                    Credit Score Thresholds
-                  </h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Poor (0-39)
-                      </label>
-                      <input
-                        type="color"
-                        className="w-full h-10"
-                        defaultValue="#EF4444"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Fair (40-69)
-                      </label>
-                      <input
-                        type="color"
-                        className="w-full h-10"
-                        defaultValue="#FBBF24"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Good (70-100)
-                      </label>
-                      <input
-                        type="color"
-                        className="w-full h-10"
-                        defaultValue="#10B981"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-6 border-t">
-                  <button className="btn-primary">Save Settings</button>
-                </div>
-              </div>
-            </div>
+          <div className="max-w-4xl mx-auto">
+            <AdminSettings />
           </div>
         );
       default:
@@ -877,7 +1157,7 @@ const AdminDashboard = () => {
         <div
           className={`${
             sidebarOpen ? "w-64" : "w-20"
-          } bg-white shadow-lg transition-all duration-300 flex flex-col fixed h-full`}
+          } bg-white shadow-lg transition-all duration-300 flex flex-col fixed h-full z-10 left-0 top-0`}
         >
           {/* Logo */}
           <div className="h-16 flex items-center justify-between px-4 border-b">
@@ -902,21 +1182,25 @@ const AdminDashboard = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 overflow-y-auto">
+          <nav className="flex-1 p-3 overflow-y-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full mb-2 dashboard-tab ${
+                  className={`w-full flex items-center px-3 py-3 mb-1 rounded-lg transition-colors ${
                     activeTab === tab.id
-                      ? "dashboard-tab-active"
-                      : "dashboard-tab-inactive"
+                      ? "bg-primary-50 text-primary-700"
+                      : "text-gray-600 hover:bg-gray-100"
                   }`}
                 >
-                  <Icon size={20} />
-                  {sidebarOpen && <span className="ml-3">{tab.label}</span>}
+                  <Icon size={20} className="flex-shrink-0" />
+                  {sidebarOpen && (
+                    <span className="ml-3 text-sm font-medium truncate">
+                      {tab.label}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -924,13 +1208,21 @@ const AdminDashboard = () => {
 
           {/* Admin Info */}
           <div className="p-4 border-t">
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                <FiUser className="text-primary-600" />
-              </div>
+            <div className="flex items-center">
+              {user?.profilePhoto?.url ? (
+                <img
+                  src={user.profilePhoto.url}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <FiUser className="text-primary-600" size={16} />
+                </div>
+              )}
               {sidebarOpen && (
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
+                <div className="ml-3 flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
                     {user?.firstName} {user?.lastName}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
@@ -941,10 +1233,12 @@ const AdminDashboard = () => {
             </div>
             <button
               onClick={handleLogout}
-              className="flex items-center space-x-3 text-gray-600 hover:text-red-600 w-full"
+              className={`mt-3 flex items-center text-gray-600 hover:text-red-600 w-full px-2 py-2 rounded-lg hover:bg-gray-50 ${
+                sidebarOpen ? "justify-start" : "justify-center"
+              }`}
             >
               <FiLogOut size={20} />
-              {sidebarOpen && <span>Logout</span>}
+              {sidebarOpen && <span className="ml-3 text-sm">Logout</span>}
             </button>
           </div>
         </div>

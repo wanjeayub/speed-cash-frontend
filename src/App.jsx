@@ -36,14 +36,28 @@ function App() {
       <ErrorBoundary>
         <Router>
           <Routes>
+            {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/admin/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+
+            {/* Protected User Routes */}
             <Route
               path="/dashboard"
               element={
                 <PrivateRoute>
                   <UserDashboard />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Protected Admin Routes */}
+            <Route
+              path="/admin"
+              element={
+                <PrivateRoute adminRequired>
+                  <AdminDashboard />
                 </PrivateRoute>
               }
             />
@@ -55,6 +69,8 @@ function App() {
                 </PrivateRoute>
               }
             />
+
+            {/* Catch all - redirect to home */}
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Router>

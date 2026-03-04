@@ -42,7 +42,6 @@ const Navbar = () => {
     { name: "Home", path: "/", icon: FiHome },
     { name: "About", path: "/about", icon: FiInfo },
     { name: "Contact", path: "/contact", icon: FiPhone },
-    { name: "FAQs", path: "/faqs", icon: FiShield },
   ];
 
   return (
@@ -90,6 +89,21 @@ const Navbar = () => {
               </Link>
             ))}
 
+            {/* Admin Login Link - Only show when not authenticated */}
+            {!isAuthenticated && (
+              <Link
+                to="/admin/login"
+                className={`flex items-center space-x-1 font-medium transition-colors ${
+                  scrolled
+                    ? "text-gray-700 hover:text-primary-600"
+                    : "text-white hover:text-gray-200"
+                }`}
+              >
+                <FiShield className="text-sm" />
+                <span>Admin</span>
+              </Link>
+            )}
+
             {isAuthenticated ? (
               <div className="relative">
                 <button
@@ -100,14 +114,15 @@ const Navbar = () => {
                       : "bg-white/20 text-white hover:bg-white/30"
                   }`}
                 >
-                  <img
-                    src={
-                      user?.profilePhoto?.url ||
-                      `https://ui-avatars.com/api/?name=${user?.firstName}+${user?.lastName}&background=random`
-                    }
-                    alt="Profile"
-                    className="w-6 h-6 rounded-full"
-                  />
+                  {user?.profilePhoto?.url ? (
+                    <img
+                      src={user.profilePhoto.url}
+                      alt="Profile"
+                      className="w-6 h-6 rounded-full"
+                    />
+                  ) : (
+                    <FiUser size={16} />
+                  )}
                   <span>{user?.firstName || "User"}</span>
                   <FiChevronDown
                     className={`transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
@@ -204,6 +219,22 @@ const Navbar = () => {
                   <span>{link.name}</span>
                 </Link>
               ))}
+
+              {/* Admin Link for Mobile */}
+              {!isAuthenticated && (
+                <Link
+                  to="/admin/login"
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium ${
+                    scrolled
+                      ? "text-gray-700 hover:bg-gray-100"
+                      : "text-white hover:bg-white/10"
+                  }`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  <FiShield />
+                  <span>Admin Login</span>
+                </Link>
+              )}
 
               {isAuthenticated ? (
                 <>

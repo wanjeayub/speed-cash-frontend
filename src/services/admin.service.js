@@ -36,6 +36,27 @@ class AdminService {
     const response = await api.post(`/admin/loans/${loanId}/pay`, paymentData);
     return response.data;
   }
+
+  // Admin Management
+  async getAllAdmins() {
+    const response = await api.get("/admin/manage/admins");
+    return response.data;
+  }
+
+  async promoteToAdmin(userId) {
+    const response = await api.put(`/admin/manage/promote/${userId}`);
+    return response.data;
+  }
+
+  async demoteFromAdmin(adminId) {
+    const response = await api.put(`/admin/manage/demote/${adminId}`);
+    return response.data;
+  }
+
+  async createAdmin(adminData) {
+    const response = await api.post("/admin/manage/create", adminData);
+    return response.data;
+  }
 }
 
 export default new AdminService();

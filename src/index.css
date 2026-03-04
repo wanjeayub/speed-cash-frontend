@@ -25,3 +25,41 @@
     @apply bg-white rounded-xl shadow-md p-6;
   }
 }
+
+/* Toggle Switch */
+.toggle-checkbox {
+  appearance: none;
+  width: 48px;
+  height: 24px;
+  background-color: #e5e7eb;
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.toggle-checkbox:checked {
+  background-color: #2563eb;
+}
+
+.toggle-checkbox::before {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background-color: white;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: all 0.3s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-checkbox:checked::before {
+  left: 26px;
+}
+
+.toggle-checkbox:focus {
+  outline: none;
+  ring: 2px solid #2563eb;
+}
