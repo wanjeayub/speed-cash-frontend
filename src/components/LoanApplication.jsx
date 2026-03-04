@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { FiX, FiInfo } from "react-icons/fi";
 import toast from "react-hot-toast";
+import { Link } from "react-router-dom";
 
 const LoanApplication = ({ onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
