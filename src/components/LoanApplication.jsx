@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FiX, FiInfo } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
-import api from "../services/api"; // Import your API service
+import publicService from "../services/public.service";
 
 const LoanApplication = ({ onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
@@ -30,9 +30,11 @@ const LoanApplication = ({ onClose, onSubmit }) => {
       minTenure: 2,
       maxTenure: 4,
     },
+    latePaymentPenalty: 5,
+    defaultLoanPurpose: "Personal use",
   });
 
-  // Fetch loan settings from admin
+  // Fetch loan settings from public endpoint
   useEffect(() => {
     fetchLoanSettings();
   }, []);
@@ -40,19 +42,37 @@ const LoanApplication = ({ onClose, onSubmit }) => {
   const fetchLoanSettings = async () => {
     try {
       setSettingsLoading(true);
-      const response = await api.get("/admin/settings");
-      if (response.data.success) {
-        setLoanSettings(response.data.settings.loanSettings);
+      const response = await publicService.getLoanSettings();
+      if (response.success) {
+        setLoanSettings(response.settings.loanSettings);
         // Set default tenure based on settings
         setFormData((prev) => ({
           ...prev,
           tenureMonths:
-            response.data.settings.loanSettings.installmentLoan.maxTenure || 4,
+            response.settings.loanSettings.installmentLoan.maxTenure || 4,
         }));
+        console.log("Loan settings loaded:", response.settings.loanSettings);
       }
     } catch (error) {
       console.error("Error fetching loan settings:", error);
-      toast.error("Failed to load loan settings. Using default values.");
+
+      // More detailed error logging
+      if (error.response) {
+        console.error(
+          "Error response:",
+          error.response.status,
+          error.response.data,
+        );
+        toast.error(
+          `Failed to load loan settings: ${error.response.data?.message || error.response.statusText}`,
+        );
+      } else if (error.request) {
+        console.error("No response received:", error.request);
+        toast.error("Network error. Please check your connection.");
+      } else {
+        console.error("Error:", error.message);
+        toast.error("Failed to load loan settings. Using default values.");
+      }
     } finally {
       setSettingsLoading(false);
     }
