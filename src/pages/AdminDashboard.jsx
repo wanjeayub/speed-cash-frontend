@@ -643,6 +643,10 @@ const AdminDashboard = () => {
     const [loading, setLoading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
+    const [showInstallmentSchedule, setShowInstallmentSchedule] =
+      useState(false);
+    const [selectedInstallmentLoan, setSelectedInstallmentLoan] =
+      useState(null);
 
     useEffect(() => {
       fetchAdmins();
@@ -903,145 +907,115 @@ const AdminDashboard = () => {
     );
   };
 
-  const renderLoansTable = (loansList, showActions = true) => (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Loan Number
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Borrower
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Amount
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Paid
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Balance
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Due Date
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              {showActions && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {loansList.map((loan) => {
-              const remainingBalance =
-                loan.totalAmount - (loan.amountPaid || 0);
-              const canProcessPayment = ["approved", "partial"].includes(
-                loan.status,
-              );
+  {
+    /* Enhanced Loan Status Distribution */
+  }
+  <div className="bg-white rounded-xl p-6 shadow-sm">
+    <h3 className="text-lg font-semibold mb-4">Loan Distribution</h3>
+    <div className="grid grid-cols-2 gap-4">
+      {/* By Status */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-500 mb-2">By Status</h4>
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart>
+            <Pie
+              data={[
+                {
+                  name: "Pending",
+                  value: pendingLoans.length,
+                  color: "#FBBF24",
+                },
+                {
+                  name: "Approved",
+                  value: approvedLoans.length,
+                  color: "#34D399",
+                },
+                {
+                  name: "Partial",
+                  value: partialLoans.length,
+                  color: "#60A5FA",
+                },
+                { name: "Paid", value: paidLoans.length, color: "#10B981" },
+                {
+                  name: "Defaulted",
+                  value: defaultedLoans.length,
+                  color: "#EF4444",
+                },
+              ]}
+              cx="50%"
+              cy="50%"
+              outerRadius={60}
+              fill="#8884d8"
+              dataKey="value"
+            >
+              {[
+                { color: "#FBBF24" },
+                { color: "#34D399" },
+                { color: "#60A5FA" },
+                { color: "#10B981" },
+                { color: "#EF4444" },
+              ].map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
 
-              return (
-                <tr key={loan._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap font-medium">
-                    {loan.loanNumber}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium">
-                      {loan.user?.firstName} {loan.user?.lastName}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {loan.user?.email}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    KES {loan.amount?.toLocaleString() || 0}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    KES {loan.amountPaid?.toLocaleString() || 0}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-medium">
-                    KES {remainingBalance.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {loan.dueDate
-                      ? new Date(loan.dueDate).toLocaleDateString()
-                      : "N/A"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        loan.status === "approved"
-                          ? "bg-green-100 text-green-800"
-                          : loan.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : loan.status === "rejected"
-                              ? "bg-red-100 text-red-800"
-                              : loan.status === "paid"
-                                ? "bg-blue-100 text-blue-800"
-                                : loan.status === "partial"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {loan.status}
-                    </span>
-                  </td>
-                  {showActions && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {loan.status === "pending" && (
-                        <>
-                          <button
-                            onClick={() => handleApproveLoan(loan._id)}
-                            className="text-green-600 hover:text-green-900 mr-3"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleRejectLoan(loan._id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-                      {canProcessPayment && (
-                        <button
-                          onClick={() => {
-                            setSelectedLoan(loan);
-                            setShowPaymentModal(true);
-                          }}
-                          className="text-primary-600 hover:text-primary-900 mr-3"
-                        >
-                          Process Payment
-                        </button>
-                      )}
-                      {loan.status === "paid" && (
-                        <span className="text-gray-400 text-sm">
-                          No actions needed
-                        </span>
-                      )}
-                      <button
-                        onClick={() => handleViewUser(loan.user?._id)}
-                        className="text-gray-600 hover:text-gray-900 ml-2"
-                        title="View User Details"
-                      >
-                        <FiEye size={18} />
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      {/* By Type */}
+      <div>
+        <h4 className="text-sm font-medium text-gray-500 mb-2">By Loan Type</h4>
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart>
+            <Pie
+              data={[
+                {
+                  name: "One Month",
+                  value:
+                    loans?.filter((l) => l.productType === "one_month")
+                      .length || 0,
+                  color: "#3B82F6",
+                },
+                {
+                  name: "Installment",
+                  value:
+                    loans?.filter((l) => l.productType === "installment")
+                      .length || 0,
+                  color: "#8B5CF6",
+                },
+              ]}
+              cx="50%"
+              cy="50%"
+              outerRadius={60}
+              fill="#8884d8"
+              dataKey="value"
+            >
+              <Cell fill="#3B82F6" />
+              <Cell fill="#8B5CF6" />
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
       </div>
     </div>
-  );
+
+    {/* Installment Summary */}
+    <div className="mt-4 grid grid-cols-2 gap-4">
+      <div className="bg-blue-50 p-3 rounded-lg">
+        <p className="text-xs text-blue-600">One Month Loans</p>
+        <p className="text-xl font-bold">
+          {loans?.filter((l) => l.productType === "one_month").length || 0}
+        </p>
+      </div>
+      <div className="bg-purple-50 p-3 rounded-lg">
+        <p className="text-xs text-purple-600">Installment Loans</p>
+        <p className="text-xl font-bold">
+          {loans?.filter((l) => l.productType === "installment").length || 0}
+        </p>
+      </div>
+    </div>
+  </div>;
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -1284,6 +1258,17 @@ const AdminDashboard = () => {
             setSelectedLoan(null);
           }}
           onSubmit={handleProcessPayment}
+        />
+      )}
+
+      {/* Installment Schedule Modal */}
+      {showInstallmentSchedule && selectedInstallmentLoan && (
+        <InstallmentScheduleModal
+          loan={selectedInstallmentLoan}
+          onClose={() => {
+            setShowInstallmentSchedule(false);
+            setSelectedInstallmentLoan(null);
+          }}
         />
       )}
     </>
