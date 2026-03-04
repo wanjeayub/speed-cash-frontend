@@ -37,6 +37,9 @@ import {
   rejectLoan,
   processPayment,
 } from "../store/slices/adminSlice";
+
+import adminService from "../services/admin.service";
+import CreateAdminModal from "../components/CreateAdminModal";
 import LoadingSpinner from "../components/LoadingSpinner";
 import UserDetailsModal from "../components/UserDetailsModal";
 import PaymentModal from "../components/PaymentModal";

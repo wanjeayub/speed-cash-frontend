@@ -7,7 +7,7 @@ import {
   FiPhone,
   FiCreditCard,
 } from "react-icons/fi";
-import { adminService } from "../services/admin.service";
+import adminService from "../services/admin.service";
 import toast from "react-hot-toast";
 
 const CreateAdminModal = ({ onClose, onSuccess }) => {
