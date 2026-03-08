@@ -16,7 +16,7 @@ import {
 } from "recharts";
 import { FiDownload, FiCalendar } from "react-icons/fi";
 
-const LoanStats = ({ stats, onYearChange }) => {
+const LoanStats = ({ stats, loans = [], onYearChange }) => {
   if (!stats) return null;
 
   const COLORS = {
@@ -25,7 +25,21 @@ const LoanStats = ({ stats, onYearChange }) => {
     partial: "#60A5FA",
     paid: "#10B981",
     defaulted: "#EF4444",
+    one_month: "#3B82F6",
+    twenty_four_hr: "#F59E0B",
+    weekly: "#10B981",
+    installment: "#8B5CF6",
   };
+
+  // Calculate loan counts by type
+  const oneMonthLoans =
+    loans?.filter((l) => l.productType === "one_month").length || 0;
+  const twentyFourHrLoans =
+    loans?.filter((l) => l.productType === "twenty_four_hr").length || 0;
+  const weeklyLoans =
+    loans?.filter((l) => l.productType === "weekly").length || 0;
+  const installmentLoans =
+    loans?.filter((l) => l.productType === "installment").length || 0;
 
   const monthlyData =
     stats.monthly?.map((item) => ({
@@ -44,8 +58,45 @@ const LoanStats = ({ stats, onYearChange }) => {
       amount: item.totalAmount,
     })) || [];
 
+  const typeData = [
+    { name: "One Month", value: oneMonthLoans, color: COLORS.one_month },
+    { name: "24hr", value: twentyFourHrLoans, color: COLORS.twenty_four_hr },
+    { name: "Weekly", value: weeklyLoans, color: COLORS.weekly },
+    {
+      name: "Monthly Installment",
+      value: installmentLoans,
+      color: COLORS.installment,
+    },
+  ].filter((item) => item.value > 0);
+
   const totalLoans = statusData.reduce((sum, item) => sum + item.value, 0);
   const totalAmount = statusData.reduce((sum, item) => sum + item.amount, 0);
+
+  const handleExport = () => {
+    try {
+      const csvContent = [
+        ["Month", "Loan Count", "Total Amount", "Interest"].join(","),
+        ...monthlyData.map((item) =>
+          [item.month, item.count, item.amount, item.interest].join(","),
+        ),
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `loan-stats-${new Date().toISOString().split("T")[0]}.csv`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export error:", error);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -60,14 +111,17 @@ const LoanStats = ({ stats, onYearChange }) => {
               value={stats.currentYear}
               onChange={(e) => onYearChange(e.target.value)}
             >
-              {[2024, 2023, 2022, 2021].map((year) => (
+              {[2026, 2025, 2024, 2023].map((year) => (
                 <option key={year} value={year}>
                   {year}
                 </option>
               ))}
             </select>
           </div>
-          <button className="flex items-center space-x-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
+          <button
+            onClick={handleExport}
+            className="flex items-center space-x-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
+          >
             <FiDownload />
             <span>Export Report</span>
           </button>
@@ -174,30 +228,56 @@ const LoanStats = ({ stats, onYearChange }) => {
           </ResponsiveContainer>
         </div>
 
-        {/* Status Amounts */}
+        {/* Loan Type Distribution */}
         <div className="bg-white rounded-xl p-6 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">Amount by Status</h3>
-          <div className="space-y-4">
-            {statusData.map((status) => (
-              <div key={status.name}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="capitalize">{status.name}</span>
-                  <span className="font-medium">
-                    KES {status.amount?.toLocaleString() || 0}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="h-2 rounded-full"
-                    style={{
-                      width: `${(status.amount / totalAmount) * 100}%`,
-                      backgroundColor: COLORS[status.name] || "#CBD5E1",
-                    }}
-                  ></div>
-                </div>
+          <h3 className="text-lg font-semibold mb-4">Loan Type Distribution</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={typeData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) =>
+                  `${name} ${(percent * 100).toFixed(0)}%`
+                }
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {typeData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Status Amounts */}
+      <div className="bg-white rounded-xl p-6 shadow-sm">
+        <h3 className="text-lg font-semibold mb-4">Amount by Status</h3>
+        <div className="space-y-4">
+          {statusData.map((status) => (
+            <div key={status.name}>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="capitalize">{status.name}</span>
+                <span className="font-medium">
+                  KES {status.amount?.toLocaleString() || 0}
+                </span>
               </div>
-            ))}
-          </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="h-2 rounded-full"
+                  style={{
+                    width: `${(status.amount / totalAmount) * 100}%`,
+                    backgroundColor: COLORS[status.name] || "#CBD5E1",
+                  }}
+                ></div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

@@ -9,8 +9,7 @@ const LoanApplication = ({ onClose, onSubmit }) => {
     amount: "",
     productType: "one_month",
     tenureMonths: 4,
-    tenureWeeks: 4,
-    tenureDays: 7,
+    tenureWeeks: 1,
     purpose: "",
   });
 
@@ -20,7 +19,7 @@ const LoanApplication = ({ onClose, onSubmit }) => {
   const [calculation, setCalculation] = useState(null);
   const [loanSettings, setLoanSettings] = useState({
     oneMonthLoan: {
-      interestRate: 10,
+      interestRate: 20,
       minAmount: 100,
       maxAmount: 1000000,
       loanTermDays: 30,
@@ -36,15 +35,13 @@ const LoanApplication = ({ onClose, onSubmit }) => {
       interestRate: 10,
       minAmount: 500,
       maxAmount: 500000,
-      minWeeks: 2,
-      maxWeeks: 8,
+      minWeeks: 1,
+      maxWeeks: 3,
     },
-    dailyLoan: {
+    twentyFourHrLoan: {
       interestRate: 5,
       minAmount: 100,
       maxAmount: 100000,
-      minDays: 3,
-      maxDays: 14,
     },
     latePaymentPenalty: 5,
     defaultLoanPurpose: "Personal use",
@@ -60,7 +57,6 @@ const LoanApplication = ({ onClose, onSubmit }) => {
       setSettingsLoading(true);
       const response = await publicService.getLoanSettings();
       if (response.success && response.settings?.loanSettings) {
-        // Merge with defaults to ensure all properties exist
         const settings = response.settings.loanSettings;
         setLoanSettings({
           oneMonthLoan: {
@@ -75,9 +71,9 @@ const LoanApplication = ({ onClose, onSubmit }) => {
             ...loanSettings.weeklyLoan,
             ...(settings.weeklyLoan || {}),
           },
-          dailyLoan: {
-            ...loanSettings.dailyLoan,
-            ...(settings.dailyLoan || {}),
+          twentyFourHrLoan: {
+            ...loanSettings.twentyFourHrLoan,
+            ...(settings.twentyFourHrLoan || {}),
           },
           latePaymentPenalty:
             settings.latePaymentPenalty ?? loanSettings.latePaymentPenalty,
@@ -89,8 +85,7 @@ const LoanApplication = ({ onClose, onSubmit }) => {
         setFormData((prev) => ({
           ...prev,
           tenureMonths: settings.installmentLoan?.maxTenure || 4,
-          tenureWeeks: settings.weeklyLoan?.maxWeeks || 4,
-          tenureDays: settings.dailyLoan?.maxDays || 7,
+          tenureWeeks: settings.weeklyLoan?.maxWeeks || 1,
         }));
       }
     } catch (error) {
@@ -105,7 +100,6 @@ const LoanApplication = ({ onClose, onSubmit }) => {
   const calculateLoan = () => {
     const amount = parseFloat(formData.amount) || 0;
 
-    // Safety check - ensure loanSettings exists
     if (!loanSettings) return null;
 
     if (formData.productType === "one_month") {
@@ -113,13 +107,13 @@ const LoanApplication = ({ onClose, onSubmit }) => {
       if (amount < minAmount) return null;
 
       const interestRate =
-        (loanSettings.oneMonthLoan?.interestRate || 10) / 100;
+        (loanSettings.oneMonthLoan?.interestRate || 20) / 100;
       const interest = amount * interestRate;
       const total = amount + interest;
 
       return {
         type: "One Month Loan",
-        interestRate: `${loanSettings.oneMonthLoan?.interestRate || 10}%`,
+        interestRate: `${loanSettings.oneMonthLoan?.interestRate || 20}%`,
         totalRepayment: total,
         interestAmount: interest,
         periodAmount: total,
@@ -128,12 +122,38 @@ const LoanApplication = ({ onClose, onSubmit }) => {
         breakdown: [
           { label: "Principal", amount },
           {
-            label: `Interest (${loanSettings.oneMonthLoan?.interestRate || 10}%)`,
+            label: `Interest (${loanSettings.oneMonthLoan?.interestRate || 20}%)`,
             amount: interest,
           },
           { label: "Total Repayment", amount: total, highlight: true },
         ],
         termDays: loanSettings.oneMonthLoan?.loanTermDays || 30,
+      };
+    } else if (formData.productType === "twenty_four_hr") {
+      const minAmount = loanSettings.twentyFourHrLoan?.minAmount || 100;
+      if (amount < minAmount) return null;
+
+      const interestRate =
+        (loanSettings.twentyFourHrLoan?.interestRate || 5) / 100;
+      const interest = amount * interestRate;
+      const total = amount + interest;
+
+      return {
+        type: "24 Hour Loan",
+        interestRate: `${loanSettings.twentyFourHrLoan?.interestRate || 5}%`,
+        totalRepayment: total,
+        interestAmount: interest,
+        periodAmount: total,
+        numberOfPeriods: 1,
+        periodLabel: "One payment (next day)",
+        breakdown: [
+          { label: "Principal", amount },
+          {
+            label: `Interest (${loanSettings.twentyFourHrLoan?.interestRate || 5}%)`,
+            amount: interest,
+          },
+          { label: "Total Repayment", amount: total, highlight: true },
+        ],
       };
     } else if (formData.productType === "installment") {
       const minAmount = loanSettings.installmentLoan?.minAmount || 1000;
@@ -221,49 +241,6 @@ const LoanApplication = ({ onClose, onSubmit }) => {
           { label: "Total Repayment", amount: totalRepayment, highlight: true },
         ],
       };
-    } else if (formData.productType === "daily") {
-      const minAmount = loanSettings.dailyLoan?.minAmount || 100;
-      if (amount < minAmount) return null;
-
-      const days = formData.tenureDays;
-      const dailyInterestRate =
-        (loanSettings.dailyLoan?.interestRate || 5) / 100;
-      const dailyPrincipal = amount / days;
-      let remainingBalance = amount;
-      const schedule = [];
-      let totalRepayment = 0;
-
-      for (let i = 1; i <= days; i++) {
-        const interestPortion = remainingBalance * dailyInterestRate;
-        const principalPortion = dailyPrincipal;
-        const dailyTotal = principalPortion + interestPortion;
-
-        schedule.push({
-          period: i,
-          principal: principalPortion,
-          interest: interestPortion,
-          total: dailyTotal,
-        });
-
-        totalRepayment += dailyTotal;
-        remainingBalance -= dailyPrincipal;
-      }
-
-      return {
-        type: `${days} Day Loan`,
-        interestRate: `${loanSettings.dailyLoan?.interestRate || 5}% (reducing balance)`,
-        totalRepayment,
-        interestAmount: totalRepayment - amount,
-        periodAmount: schedule[0]?.total || 0,
-        numberOfPeriods: days,
-        periodLabel: "daily payment",
-        schedule,
-        breakdown: [
-          { label: "Principal", amount },
-          { label: "Total Interest", amount: totalRepayment - amount },
-          { label: "Total Repayment", amount: totalRepayment, highlight: true },
-        ],
-      };
     }
 
     return null;
@@ -281,7 +258,6 @@ const LoanApplication = ({ onClose, onSubmit }) => {
     formData.productType,
     formData.tenureMonths,
     formData.tenureWeeks,
-    formData.tenureDays,
     settingsLoading,
   ]);
 
@@ -289,7 +265,6 @@ const LoanApplication = ({ onClose, onSubmit }) => {
     const newErrors = {};
     const amount = parseFloat(formData.amount);
 
-    // Safety checks
     if (!loanSettings) return false;
 
     let minAmount, maxAmount;
@@ -298,6 +273,10 @@ const LoanApplication = ({ onClose, onSubmit }) => {
       case "one_month":
         minAmount = loanSettings.oneMonthLoan?.minAmount || 100;
         maxAmount = loanSettings.oneMonthLoan?.maxAmount || 1000000;
+        break;
+      case "twenty_four_hr":
+        minAmount = loanSettings.twentyFourHrLoan?.minAmount || 100;
+        maxAmount = loanSettings.twentyFourHrLoan?.maxAmount || 100000;
         break;
       case "installment":
         minAmount = loanSettings.installmentLoan?.minAmount || 1000;
@@ -314,20 +293,10 @@ const LoanApplication = ({ onClose, onSubmit }) => {
         minAmount = loanSettings.weeklyLoan?.minAmount || 500;
         maxAmount = loanSettings.weeklyLoan?.maxAmount || 500000;
         if (
-          formData.tenureWeeks < (loanSettings.weeklyLoan?.minWeeks || 2) ||
-          formData.tenureWeeks > (loanSettings.weeklyLoan?.maxWeeks || 8)
+          formData.tenureWeeks < (loanSettings.weeklyLoan?.minWeeks || 1) ||
+          formData.tenureWeeks > (loanSettings.weeklyLoan?.maxWeeks || 3)
         ) {
-          newErrors.tenure = `Tenure must be between ${loanSettings.weeklyLoan?.minWeeks || 2} and ${loanSettings.weeklyLoan?.maxWeeks || 8} weeks`;
-        }
-        break;
-      case "daily":
-        minAmount = loanSettings.dailyLoan?.minAmount || 100;
-        maxAmount = loanSettings.dailyLoan?.maxAmount || 100000;
-        if (
-          formData.tenureDays < (loanSettings.dailyLoan?.minDays || 3) ||
-          formData.tenureDays > (loanSettings.dailyLoan?.maxDays || 14)
-        ) {
-          newErrors.tenure = `Tenure must be between ${loanSettings.dailyLoan?.minDays || 3} and ${loanSettings.dailyLoan?.maxDays || 14} days`;
+          newErrors.tenure = `Tenure must be between ${loanSettings.weeklyLoan?.minWeeks || 1} and ${loanSettings.weeklyLoan?.maxWeeks || 3} weeks`;
         }
         break;
       default:
@@ -363,8 +332,6 @@ const LoanApplication = ({ onClose, onSubmit }) => {
           loanData.tenureMonths = formData.tenureMonths;
         } else if (formData.productType === "weekly") {
           loanData.tenureWeeks = formData.tenureWeeks;
-        } else if (formData.productType === "daily") {
-          loanData.tenureDays = formData.tenureDays;
         }
 
         await onSubmit(loanData);
@@ -395,12 +362,12 @@ const LoanApplication = ({ onClose, onSubmit }) => {
     switch (formData.productType) {
       case "one_month":
         return loanSettings.oneMonthLoan?.minAmount || 100;
+      case "twenty_four_hr":
+        return loanSettings.twentyFourHrLoan?.minAmount || 100;
       case "installment":
         return loanSettings.installmentLoan?.minAmount || 1000;
       case "weekly":
         return loanSettings.weeklyLoan?.minAmount || 500;
-      case "daily":
-        return loanSettings.dailyLoan?.minAmount || 100;
       default:
         return 100;
     }
@@ -411,18 +378,17 @@ const LoanApplication = ({ onClose, onSubmit }) => {
     switch (formData.productType) {
       case "one_month":
         return loanSettings.oneMonthLoan?.maxAmount || 1000000;
+      case "twenty_four_hr":
+        return loanSettings.twentyFourHrLoan?.maxAmount || 100000;
       case "installment":
         return loanSettings.installmentLoan?.maxAmount || 1000000;
       case "weekly":
         return loanSettings.weeklyLoan?.maxAmount || 500000;
-      case "daily":
-        return loanSettings.dailyLoan?.maxAmount || 100000;
       default:
         return 1000000;
     }
   };
 
-  // Safety check for loanSettings
   if (!loanSettings) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -441,7 +407,6 @@ const LoanApplication = ({ onClose, onSubmit }) => {
   const minAmount = getMinAmount();
   const maxAmount = getMaxAmount();
 
-  // Generate tenure options safely
   const getTenureOptions = (type) => {
     switch (type) {
       case "installment":
@@ -452,18 +417,11 @@ const LoanApplication = ({ onClose, onSubmit }) => {
           (_, i) => i + minMonths,
         );
       case "weekly":
-        const minWeeks = loanSettings.weeklyLoan?.minWeeks || 2;
-        const maxWeeks = loanSettings.weeklyLoan?.maxWeeks || 8;
+        const minWeeks = loanSettings.weeklyLoan?.minWeeks || 1;
+        const maxWeeks = loanSettings.weeklyLoan?.maxWeeks || 3;
         return Array.from(
           { length: maxWeeks - minWeeks + 1 },
           (_, i) => i + minWeeks,
-        );
-      case "daily":
-        const minDays = loanSettings.dailyLoan?.minDays || 3;
-        const maxDays = loanSettings.dailyLoan?.maxDays || 14;
-        return Array.from(
-          { length: maxDays - minDays + 1 },
-          (_, i) => i + minDays,
         );
       default:
         return [];
@@ -524,7 +482,7 @@ const LoanApplication = ({ onClose, onSubmit }) => {
                   <div>
                     <h3 className="font-semibold">One Month Loan</h3>
                     <p className="text-sm text-gray-600">
-                      {loanSettings.oneMonthLoan?.interestRate || 10}% interest,
+                      {loanSettings.oneMonthLoan?.interestRate || 20}% interest,
                       repay in {loanSettings.oneMonthLoan?.loanTermDays || 30}{" "}
                       days
                     </p>
@@ -532,6 +490,105 @@ const LoanApplication = ({ onClose, onSubmit }) => {
                       Simple interest, one payment • Min: KES{" "}
                       {(
                         loanSettings.oneMonthLoan?.minAmount || 100
+                      ).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </label>
+
+              {/* 24 Hour Loan */}
+              <label
+                className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                  formData.productType === "twenty_four_hr"
+                    ? "border-primary-600 bg-primary-50"
+                    : "border-gray-200 hover:border-primary-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="productType"
+                  value="twenty_four_hr"
+                  checked={formData.productType === "twenty_four_hr"}
+                  onChange={(e) =>
+                    setFormData({ ...formData, productType: e.target.value })
+                  }
+                  className="sr-only"
+                />
+                <div className="flex items-start">
+                  <div
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 mt-0.5 ${
+                      formData.productType === "twenty_four_hr"
+                        ? "border-primary-600 bg-primary-600"
+                        : "border-gray-400"
+                    }`}
+                  >
+                    {formData.productType === "twenty_four_hr" && (
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold flex items-center">
+                      <FiSun className="mr-1" size={16} />
+                      24 Hour Loan
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {loanSettings.twentyFourHrLoan?.interestRate || 5}%
+                      interest, repay next day
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Quick cash for emergencies • Min: KES{" "}
+                      {(
+                        loanSettings.twentyFourHrLoan?.minAmount || 100
+                      ).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </label>
+
+              {/* Weekly Loan */}
+              <label
+                className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                  formData.productType === "weekly"
+                    ? "border-primary-600 bg-primary-50"
+                    : "border-gray-200 hover:border-primary-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="productType"
+                  value="weekly"
+                  checked={formData.productType === "weekly"}
+                  onChange={(e) =>
+                    setFormData({ ...formData, productType: e.target.value })
+                  }
+                  className="sr-only"
+                />
+                <div className="flex items-start">
+                  <div
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 mt-0.5 ${
+                      formData.productType === "weekly"
+                        ? "border-primary-600 bg-primary-600"
+                        : "border-gray-400"
+                    }`}
+                  >
+                    {formData.productType === "weekly" && (
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold flex items-center">
+                      <FiClock className="mr-1" size={16} />
+                      Weekly Loan
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {loanSettings.weeklyLoan?.interestRate || 10}% interest,
+                      weekly payments
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {loanSettings.weeklyLoan?.minWeeks || 1}-
+                      {loanSettings.weeklyLoan?.maxWeeks || 3} weeks • Min: KES{" "}
+                      {(
+                        loanSettings.weeklyLoan?.minAmount || 500
                       ).toLocaleString()}
                     </p>
                   </div>
@@ -585,106 +642,6 @@ const LoanApplication = ({ onClose, onSubmit }) => {
                   </div>
                 </div>
               </label>
-
-              {/* Weekly Loan */}
-              <label
-                className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
-                  formData.productType === "weekly"
-                    ? "border-primary-600 bg-primary-50"
-                    : "border-gray-200 hover:border-primary-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="productType"
-                  value="weekly"
-                  checked={formData.productType === "weekly"}
-                  onChange={(e) =>
-                    setFormData({ ...formData, productType: e.target.value })
-                  }
-                  className="sr-only"
-                />
-                <div className="flex items-start">
-                  <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 mt-0.5 ${
-                      formData.productType === "weekly"
-                        ? "border-primary-600 bg-primary-600"
-                        : "border-gray-400"
-                    }`}
-                  >
-                    {formData.productType === "weekly" && (
-                      <div className="w-2 h-2 bg-white rounded-full"></div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold flex items-center">
-                      <FiClock className="mr-1" size={16} />
-                      Weekly Loan
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {loanSettings.weeklyLoan?.interestRate || 10}% interest,
-                      weekly payments
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {loanSettings.weeklyLoan?.minWeeks || 2}-
-                      {loanSettings.weeklyLoan?.maxWeeks || 8} weeks • Min: KES{" "}
-                      {(
-                        loanSettings.weeklyLoan?.minAmount || 500
-                      ).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </label>
-
-              {/* Daily Loan */}
-              <label
-                className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
-                  formData.productType === "daily"
-                    ? "border-primary-600 bg-primary-50"
-                    : "border-gray-200 hover:border-primary-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="productType"
-                  value="daily"
-                  checked={formData.productType === "daily"}
-                  onChange={(e) =>
-                    setFormData({ ...formData, productType: e.target.value })
-                  }
-                  className="sr-only"
-                />
-                <div className="flex items-start">
-                  <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 mt-0.5 ${
-                      formData.productType === "daily"
-                        ? "border-primary-600 bg-primary-600"
-                        : "border-gray-400"
-                    }`}
-                  >
-                    {formData.productType === "daily" && (
-                      <div className="w-2 h-2 bg-white rounded-full"></div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold flex items-center">
-                      <FiSun className="mr-1" size={16} />
-                      Daily Loan
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {loanSettings.dailyLoan?.interestRate || 5}% interest,
-                      daily payments
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {loanSettings.dailyLoan?.minDays || 3}-
-                      {loanSettings.dailyLoan?.maxDays || 14} days • Min: KES{" "}
-                      {(
-                        loanSettings.dailyLoan?.minAmount || 100
-                      ).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              </label>
             </div>
           </div>
 
@@ -733,34 +690,7 @@ const LoanApplication = ({ onClose, onSubmit }) => {
               >
                 {getTenureOptions("weekly").map((weeks) => (
                   <option key={weeks} value={weeks}>
-                    {weeks} Weeks
-                  </option>
-                ))}
-              </select>
-              {errors.tenure && (
-                <p className="mt-1 text-sm text-red-600">{errors.tenure}</p>
-              )}
-            </div>
-          )}
-
-          {formData.productType === "daily" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Repayment Tenure (Days)
-              </label>
-              <select
-                value={formData.tenureDays}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    tenureDays: parseInt(e.target.value),
-                  })
-                }
-                className={`input-field ${errors.tenure ? "border-red-500" : ""}`}
-              >
-                {getTenureOptions("daily").map((days) => (
-                  <option key={days} value={days}>
-                    {days} Days
+                    {weeks} {weeks === 1 ? "Week" : "Weeks"}
                   </option>
                 ))}
               </select>
@@ -846,7 +776,7 @@ const LoanApplication = ({ onClose, onSubmit }) => {
                 ))}
               </div>
 
-              {/* Schedule for installment/weekly/daily loans */}
+              {/* Schedule for installment/weekly loans */}
               {calculation.schedule && calculation.schedule.length <= 10 && (
                 <div className="mt-4">
                   <h4 className="font-medium text-sm mb-2">

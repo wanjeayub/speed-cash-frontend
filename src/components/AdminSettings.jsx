@@ -33,7 +33,7 @@ const defaultSettings = {
   },
   loanSettings: {
     oneMonthLoan: {
-      interestRate: 10,
+      interestRate: 20,
       minAmount: 100,
       maxAmount: 1000000,
       loanTermDays: 30,
@@ -49,15 +49,13 @@ const defaultSettings = {
       interestRate: 10,
       minAmount: 500,
       maxAmount: 500000,
-      minWeeks: 2,
-      maxWeeks: 8,
+      minWeeks: 1,
+      maxWeeks: 3,
     },
-    dailyLoan: {
+    twentyFourHrLoan: {
       interestRate: 5,
       minAmount: 100,
       maxAmount: 100000,
-      minDays: 3,
-      maxDays: 14,
     },
     latePaymentPenalty: 5,
     defaultLoanPurpose: "Personal use",
@@ -101,9 +99,9 @@ const AdminSettings = () => {
             ...defaultSettings.loanSettings.weeklyLoan,
             ...(settings.loanSettings?.weeklyLoan || {}),
           },
-          dailyLoan: {
-            ...defaultSettings.loanSettings.dailyLoan,
-            ...(settings.loanSettings?.dailyLoan || {}),
+          twentyFourHrLoan: {
+            ...defaultSettings.loanSettings.twentyFourHrLoan,
+            ...(settings.loanSettings?.twentyFourHrLoan || {}),
           },
           latePaymentPenalty:
             settings.loanSettings?.latePaymentPenalty ??
@@ -193,13 +191,13 @@ const AdminSettings = () => {
     });
   };
 
-  const updateDailyLoan = (field, value) => {
+  const updateTwentyFourHrLoan = (field, value) => {
     setFormData({
       ...formData,
       loanSettings: {
         ...formData.loanSettings,
-        dailyLoan: {
-          ...formData.loanSettings.dailyLoan,
+        twentyFourHrLoan: {
+          ...formData.loanSettings.twentyFourHrLoan,
           [field]: value,
         },
       },
@@ -224,7 +222,72 @@ const AdminSettings = () => {
                 Notification Preferences
               </h3>
               <div className="space-y-4">
-                {/* ... existing notification checkboxes ... */}
+                <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium">Email - New Loan Applications</p>
+                    <p className="text-sm text-gray-500">
+                      Receive email when users apply for loans
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="toggle-checkbox"
+                    checked={formData.notifications.emailNewLoan}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        notifications: {
+                          ...formData.notifications,
+                          emailNewLoan: e.target.checked,
+                        },
+                      })
+                    }
+                  />
+                </label>
+                <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium">Email - Payment Received</p>
+                    <p className="text-sm text-gray-500">
+                      Receive email when payments are processed
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="toggle-checkbox"
+                    checked={formData.notifications.emailPaymentReceived}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        notifications: {
+                          ...formData.notifications,
+                          emailPaymentReceived: e.target.checked,
+                        },
+                      })
+                    }
+                  />
+                </label>
+                <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium">SMS - Urgent Matters</p>
+                    <p className="text-sm text-gray-500">
+                      Receive SMS for urgent notifications
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="toggle-checkbox"
+                    checked={formData.notifications.smsUrgent}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        notifications: {
+                          ...formData.notifications,
+                          smsUrgent: e.target.checked,
+                        },
+                      })
+                    }
+                  />
+                </label>
               </div>
               <div className="mt-6 flex justify-end">
                 <button
@@ -261,7 +324,7 @@ const AdminSettings = () => {
                       type="number"
                       className="input-field pl-10"
                       value={
-                        formData.loanSettings?.oneMonthLoan?.interestRate ?? 10
+                        formData.loanSettings?.oneMonthLoan?.interestRate ?? 20
                       }
                       onChange={(e) =>
                         updateOneMonthLoan(
@@ -493,15 +556,15 @@ const AdminSettings = () => {
                   <input
                     type="number"
                     className="input-field"
-                    value={formData.loanSettings?.weeklyLoan?.minWeeks ?? 2}
+                    value={formData.loanSettings?.weeklyLoan?.minWeeks ?? 1}
                     onChange={(e) =>
                       updateWeeklyLoan(
                         "minWeeks",
-                        parseInt(e.target.value) || 2,
+                        parseInt(e.target.value) || 1,
                       )
                     }
                     min="1"
-                    max="12"
+                    max="3"
                   />
                 </div>
                 <div>
@@ -511,15 +574,15 @@ const AdminSettings = () => {
                   <input
                     type="number"
                     className="input-field"
-                    value={formData.loanSettings?.weeklyLoan?.maxWeeks ?? 8}
+                    value={formData.loanSettings?.weeklyLoan?.maxWeeks ?? 3}
                     onChange={(e) =>
                       updateWeeklyLoan(
                         "maxWeeks",
-                        parseInt(e.target.value) || 8,
+                        parseInt(e.target.value) || 3,
                       )
                     }
                     min="1"
-                    max="12"
+                    max="3"
                   />
                 </div>
                 <div>
@@ -561,11 +624,11 @@ const AdminSettings = () => {
               </div>
             </div>
 
-            {/* Daily Loan Settings */}
+            {/* 24 Hour Loan Settings */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold mb-4 flex items-center">
                 <FiSun className="mr-2" />
-                Daily Loan Settings
+                24 Hour Loan Settings
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -579,10 +642,11 @@ const AdminSettings = () => {
                       type="number"
                       className="input-field pl-10"
                       value={
-                        formData.loanSettings?.dailyLoan?.interestRate ?? 5
+                        formData.loanSettings?.twentyFourHrLoan?.interestRate ??
+                        5
                       }
                       onChange={(e) =>
-                        updateDailyLoan(
+                        updateTwentyFourHrLoan(
                           "interestRate",
                           parseFloat(e.target.value) || 0,
                         )
@@ -595,44 +659,16 @@ const AdminSettings = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Minimum Days
-                  </label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    value={formData.loanSettings?.dailyLoan?.minDays ?? 3}
-                    onChange={(e) =>
-                      updateDailyLoan("minDays", parseInt(e.target.value) || 3)
-                    }
-                    min="1"
-                    max="30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Maximum Days
-                  </label>
-                  <input
-                    type="number"
-                    className="input-field"
-                    value={formData.loanSettings?.dailyLoan?.maxDays ?? 14}
-                    onChange={(e) =>
-                      updateDailyLoan("maxDays", parseInt(e.target.value) || 14)
-                    }
-                    min="1"
-                    max="30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Minimum Amount (KES)
                   </label>
                   <input
                     type="number"
                     className="input-field"
-                    value={formData.loanSettings?.dailyLoan?.minAmount ?? 100}
+                    value={
+                      formData.loanSettings?.twentyFourHrLoan?.minAmount ?? 100
+                    }
                     onChange={(e) =>
-                      updateDailyLoan(
+                      updateTwentyFourHrLoan(
                         "minAmount",
                         parseInt(e.target.value) || 100,
                       )
@@ -648,10 +684,11 @@ const AdminSettings = () => {
                     type="number"
                     className="input-field"
                     value={
-                      formData.loanSettings?.dailyLoan?.maxAmount ?? 100000
+                      formData.loanSettings?.twentyFourHrLoan?.maxAmount ??
+                      100000
                     }
                     onChange={(e) =>
-                      updateDailyLoan(
+                      updateTwentyFourHrLoan(
                         "maxAmount",
                         parseInt(e.target.value) || 100000,
                       )

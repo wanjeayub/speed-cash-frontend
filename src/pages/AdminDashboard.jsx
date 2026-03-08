@@ -46,7 +46,6 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import UserDetailsModal from "../components/UserDetailsModal";
 import PaymentModal from "../components/PaymentModal";
 import LoanStats from "../components/LoanStats";
-// import CreditScoreGauge from "../components/CreditScoreGauge";
 import AdminSettings from "../components/AdminSettings";
 import InstallmentScheduleModal from "../components/InstallmentScheduleModal";
 import {
@@ -81,13 +80,10 @@ const AdminDashboard = () => {
   const [selectedInstallmentLoan, setSelectedInstallmentLoan] = useState(null);
   const [filters, setFilters] = useState({
     status: "",
+    productType: "",
     month: "",
     year: new Date().getFullYear(),
     search: "",
-  });
-  const [dateRange, setDateRange] = useState({
-    start: "",
-    end: "",
   });
 
   // Define tabs array
@@ -107,7 +103,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
-  }, [dispatch, filters.year]);
+  }, [dispatch, filters.year, filters.productType]);
 
   const loadDashboardData = async () => {
     await dispatch(getAllUsers());
@@ -122,6 +118,7 @@ const AdminDashboard = () => {
   const handleApproveLoan = async (loanId) => {
     await dispatch(approveLoan({ loanId, notes: "Approved by admin" }));
     loadDashboardData();
+    toast.success("Loan approved successfully");
   };
 
   const handleRejectLoan = async (loanId) => {
@@ -129,6 +126,7 @@ const AdminDashboard = () => {
     if (reason) {
       await dispatch(rejectLoan({ loanId, reason }));
       loadDashboardData();
+      toast.success("Loan rejected successfully");
     }
   };
 
@@ -143,7 +141,7 @@ const AdminDashboard = () => {
     setShowUserModal(true);
   };
 
-  const handleExport = async (type, data) => {
+  const handleExport = async (type) => {
     try {
       let exportData;
       let filename;
@@ -170,21 +168,16 @@ const AdminDashboard = () => {
             "Borrower",
             "Type",
             "Amount",
+            "Interest Rate",
             "Status",
             "Applied Date",
             "Due Date",
           ];
           break;
-        case "stats":
-          exportData = loanStats?.monthly || [];
-          filename = `loan-stats-${new Date().toISOString().split("T")[0]}.csv`;
-          headers = ["Month", "Loan Count", "Total Amount", "Interest"];
-          break;
         default:
           return;
       }
 
-      // Convert to CSV
       const csvContent = [
         headers.join(","),
         ...exportData.map((item) => {
@@ -197,37 +190,29 @@ const AdminDashboard = () => {
               item.isProfileComplete ? "Complete" : "Incomplete",
               new Date(item.createdAt).toLocaleDateString(),
             ].join(",");
-          } else if (type === "loans") {
+          } else {
             const productTypeMap = {
               one_month: "One Month",
+              twenty_four_hr: "24hr Loan",
               installment: "Monthly Installment",
               weekly: "Weekly",
-              daily: "Daily",
             };
             return [
               item.loanNumber,
               `"${item.user?.firstName} ${item.user?.lastName}"`,
               productTypeMap[item.productType] || item.productType,
               item.amount,
+              `${item.interestRate}%`,
               item.status,
               new Date(item.applicationDate).toLocaleDateString(),
               item.dueDate
                 ? new Date(item.dueDate).toLocaleDateString()
                 : "N/A",
             ].join(",");
-          } else if (type === "stats") {
-            return [
-              item.month || `Month ${item._id}`,
-              item.count || item.totalLoans || 0,
-              item.amount || item.totalAmount || 0,
-              item.interest || item.totalInterest || 0,
-            ].join(",");
           }
-          return "";
         }),
       ].join("\n");
 
-      // Create download link
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
@@ -263,12 +248,12 @@ const AdminDashboard = () => {
   // Get loan counts by type
   const oneMonthLoans =
     loans?.filter((l) => l.productType === "one_month").length || 0;
+  const twentyFourHrLoans =
+    loans?.filter((l) => l.productType === "twenty_four_hr").length || 0;
   const monthlyInstallmentLoans =
     loans?.filter((l) => l.productType === "installment").length || 0;
   const weeklyLoans =
     loans?.filter((l) => l.productType === "weekly").length || 0;
-  const dailyLoans =
-    loans?.filter((l) => l.productType === "daily").length || 0;
 
   // Get product type color and icon
   const getProductTypeInfo = (type) => {
@@ -279,6 +264,15 @@ const AdminDashboard = () => {
           text: "text-blue-800",
           label: "One Month",
           icon: FiDollarSign,
+          color: "#3B82F6",
+        };
+      case "twenty_four_hr":
+        return {
+          bg: "bg-orange-100",
+          text: "text-orange-800",
+          label: "24hr Loan",
+          icon: FiSun,
+          color: "#F59E0B",
         };
       case "installment":
         return {
@@ -286,6 +280,7 @@ const AdminDashboard = () => {
           text: "text-purple-800",
           label: "Monthly",
           icon: FiTrendingUp,
+          color: "#8B5CF6",
         };
       case "weekly":
         return {
@@ -293,13 +288,7 @@ const AdminDashboard = () => {
           text: "text-green-800",
           label: "Weekly",
           icon: FiClock,
-        };
-      case "daily":
-        return {
-          bg: "bg-orange-100",
-          text: "text-orange-800",
-          label: "Daily",
-          icon: FiSun,
+          color: "#10B981",
         };
       default:
         return {
@@ -307,6 +296,7 @@ const AdminDashboard = () => {
           text: "text-gray-800",
           label: type,
           icon: FiCreditCard,
+          color: "#6B7280",
         };
     }
   };
@@ -374,8 +364,8 @@ const AdminDashboard = () => {
                     return loan.installmentAmount;
                   case "weekly":
                     return loan.weeklyAmount;
-                  case "daily":
-                    return loan.dailyAmount;
+                  case "twenty_four_hr":
+                    return loan.twentyFourHrAmount;
                   default:
                     return null;
                 }
@@ -404,31 +394,42 @@ const AdminDashboard = () => {
                         <TypeIcon className="mr-1" size={12} />
                         {typeInfo.label}
                       </span>
-                      {loan.productType !== "one_month" && (
+                      {loan.productType === "installment" && (
                         <span className="ml-2 text-xs text-gray-500">
-                          {loan.productType === "installment" &&
-                            `${loan.tenureMonths}m`}
-                          {loan.productType === "weekly" &&
-                            `${loan.tenureWeeks}w`}
-                          {loan.productType === "daily" &&
-                            `${loan.tenureDays}d`}
+                          {loan.tenureMonths}m
+                        </span>
+                      )}
+                      {loan.productType === "weekly" && (
+                        <span className="ml-2 text-xs text-gray-500">
+                          {loan.tenureWeeks}w
                         </span>
                       )}
                     </div>
-                    {loan.productType !== "one_month" && totalPeriods > 0 && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {paidPeriods}/{totalPeriods} periods paid
-                      </div>
-                    )}
+                    {loan.productType !== "one_month" &&
+                      loan.productType !== "twenty_four_hr" &&
+                      loan.repaymentSchedule && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {paidPeriods}/{totalPeriods} paid
+                        </div>
+                      )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-medium">
                       KES {loan.amount?.toLocaleString() || 0}
                     </div>
-                    {periodAmount && (
+                    {loan.productType === "installment" &&
+                      loan.installmentAmount && (
+                        <div className="text-xs text-gray-500">
+                          Monthly: KES {loan.installmentAmount.toLocaleString()}
+                        </div>
+                      )}
+                    {loan.productType === "weekly" && loan.weeklyAmount && (
                       <div className="text-xs text-gray-500">
-                        Per period: KES {periodAmount.toLocaleString()}
+                        Weekly: KES {loan.weeklyAmount.toLocaleString()}
                       </div>
+                    )}
+                    {loan.productType === "twenty_four_hr" && (
+                      <div className="text-xs text-gray-500">Due tomorrow</div>
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -442,7 +443,8 @@ const AdminDashboard = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {loan.productType === "one_month" ? (
+                    {loan.productType === "one_month" ||
+                    loan.productType === "twenty_four_hr" ? (
                       <div>
                         {loan.dueDate ? formatDate(loan.dueDate) : "N/A"}
                       </div>
@@ -486,6 +488,7 @@ const AdminDashboard = () => {
                         {loan.status}
                       </span>
                       {loan.productType !== "one_month" &&
+                        loan.productType !== "twenty_four_hr" &&
                         loan.status === "partial" && (
                           <span className="text-xs text-gray-500">
                             {paidPeriods}/{totalPeriods} paid
@@ -527,6 +530,7 @@ const AdminDashboard = () => {
                         </div>
                         <div className="flex space-x-2">
                           {loan.productType !== "one_month" &&
+                            loan.productType !== "twenty_four_hr" &&
                             loan.repaymentSchedule && (
                               <button
                                 onClick={() => {
@@ -674,15 +678,11 @@ const AdminDashboard = () => {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {[
-                  { color: "#FBBF24" },
-                  { color: "#34D399" },
-                  { color: "#60A5FA" },
-                  { color: "#10B981" },
-                  { color: "#EF4444" },
-                ].map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
+                <Cell fill="#FBBF24" />
+                <Cell fill="#34D399" />
+                <Cell fill="#60A5FA" />
+                <Cell fill="#10B981" />
+                <Cell fill="#EF4444" />
               </Pie>
               <Tooltip />
             </PieChart>
@@ -697,13 +697,13 @@ const AdminDashboard = () => {
               <Pie
                 data={[
                   { name: "One Month", value: oneMonthLoans, color: "#3B82F6" },
+                  { name: "24hr", value: twentyFourHrLoans, color: "#F59E0B" },
+                  { name: "Weekly", value: weeklyLoans, color: "#10B981" },
                   {
                     name: "Monthly",
                     value: monthlyInstallmentLoans,
                     color: "#8B5CF6",
                   },
-                  { name: "Weekly", value: weeklyLoans, color: "#10B981" },
-                  { name: "Daily", value: dailyLoans, color: "#F59E0B" },
                 ]}
                 cx="50%"
                 cy="50%"
@@ -712,9 +712,9 @@ const AdminDashboard = () => {
                 dataKey="value"
               >
                 <Cell fill="#3B82F6" />
-                <Cell fill="#8B5CF6" />
-                <Cell fill="#10B981" />
                 <Cell fill="#F59E0B" />
+                <Cell fill="#10B981" />
+                <Cell fill="#8B5CF6" />
               </Pie>
               <Tooltip />
             </PieChart>
@@ -724,17 +724,17 @@ const AdminDashboard = () => {
               <p className="text-xs text-blue-600">One Month</p>
               <p className="text-lg font-bold">{oneMonthLoans}</p>
             </div>
-            <div className="bg-purple-50 p-2 rounded-lg text-center">
-              <p className="text-xs text-purple-600">Monthly</p>
-              <p className="text-lg font-bold">{monthlyInstallmentLoans}</p>
+            <div className="bg-orange-50 p-2 rounded-lg text-center">
+              <p className="text-xs text-orange-600">24hr</p>
+              <p className="text-lg font-bold">{twentyFourHrLoans}</p>
             </div>
             <div className="bg-green-50 p-2 rounded-lg text-center">
               <p className="text-xs text-green-600">Weekly</p>
               <p className="text-lg font-bold">{weeklyLoans}</p>
             </div>
-            <div className="bg-orange-50 p-2 rounded-lg text-center">
-              <p className="text-xs text-orange-600">Daily</p>
-              <p className="text-lg font-bold">{dailyLoans}</p>
+            <div className="bg-purple-50 p-2 rounded-lg text-center">
+              <p className="text-xs text-purple-600">Monthly</p>
+              <p className="text-lg font-bold">{monthlyInstallmentLoans}</p>
             </div>
           </div>
         </div>
@@ -852,6 +852,7 @@ const AdminDashboard = () => {
                         <FiEye />
                       </button>
                       {loan.productType !== "one_month" &&
+                        loan.productType !== "twenty_four_hr" &&
                         loan.repaymentSchedule && (
                           <button
                             onClick={() => {
@@ -878,7 +879,6 @@ const AdminDashboard = () => {
   // Define renderUsers function
   const renderUsers = () => (
     <div className="space-y-6">
-      {/* Search and Filter */}
       <div className="bg-white rounded-xl p-4 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
           <div className="relative flex-1 max-w-md">
@@ -903,7 +903,6 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Users Table */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -1110,7 +1109,6 @@ const AdminDashboard = () => {
 
     return (
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold">Admin Management</h2>
           <button
@@ -1122,7 +1120,6 @@ const AdminDashboard = () => {
           </button>
         </div>
 
-        {/* Current Admins */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="p-6 border-b">
             <h3 className="text-lg font-semibold">Current Administrators</h3>
@@ -1189,7 +1186,6 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Promote Users Section */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="p-6 border-b">
             <h3 className="text-lg font-semibold">Promote Users to Admin</h3>
@@ -1288,7 +1284,6 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Create Admin Modal */}
         {showCreateModal && (
           <CreateAdminModal
             onClose={() => setShowCreateModal(false)}
@@ -1332,16 +1327,16 @@ const AdminDashboard = () => {
                   </select>
                   <select
                     className="input-field w-40"
-                    value={filters.productType || ""}
+                    value={filters.productType}
                     onChange={(e) =>
                       setFilters({ ...filters, productType: e.target.value })
                     }
                   >
                     <option value="">All Types</option>
                     <option value="one_month">One Month</option>
-                    <option value="installment">Monthly Installment</option>
+                    <option value="twenty_four_hr">24hr Loan</option>
                     <option value="weekly">Weekly</option>
-                    <option value="daily">Daily</option>
+                    <option value="installment">Monthly Installment</option>
                   </select>
                   <input
                     type="month"
@@ -1415,6 +1410,7 @@ const AdminDashboard = () => {
         return (
           <LoanStats
             stats={loanStats}
+            loans={loans}
             onYearChange={(year) => setFilters({ ...filters, year })}
           />
         );
@@ -1436,13 +1432,11 @@ const AdminDashboard = () => {
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 flex">
-        {/* Sidebar */}
         <div
           className={`${
             sidebarOpen ? "w-64" : "w-20"
           } bg-white shadow-lg transition-all duration-300 flex flex-col fixed h-full z-10 left-0 top-0`}
         >
-          {/* Logo */}
           <div className="h-16 flex items-center justify-between px-4 border-b">
             {sidebarOpen ? (
               <div>
@@ -1464,7 +1458,6 @@ const AdminDashboard = () => {
             </button>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 p-3 overflow-y-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -1489,7 +1482,6 @@ const AdminDashboard = () => {
             })}
           </nav>
 
-          {/* Admin Info */}
           <div className="p-4 border-t">
             <div className="flex items-center">
               {user?.profilePhoto?.url ? (
@@ -1526,7 +1518,6 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Main Content */}
         <div
           className={`flex-1 ${sidebarOpen ? "ml-64" : "ml-20"} transition-all duration-300`}
         >
@@ -1542,7 +1533,6 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* User Details Modal */}
       {showUserModal && selectedUser && (
         <UserDetailsModal
           user={selectedUser}
@@ -1555,7 +1545,6 @@ const AdminDashboard = () => {
         />
       )}
 
-      {/* Payment Modal */}
       {showPaymentModal && selectedLoan && (
         <PaymentModal
           loan={selectedLoan}
@@ -1567,7 +1556,6 @@ const AdminDashboard = () => {
         />
       )}
 
-      {/* Installment Schedule Modal */}
       {showInstallmentSchedule && selectedInstallmentLoan && (
         <InstallmentScheduleModal
           loan={selectedInstallmentLoan}
