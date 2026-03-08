@@ -27,6 +27,7 @@ import {
   FiArrowDown,
   FiShield,
   FiUserPlus,
+  FiSun,
 } from "react-icons/fi";
 import { logout } from "../store/slices/authSlice";
 import {
@@ -45,7 +46,7 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import UserDetailsModal from "../components/UserDetailsModal";
 import PaymentModal from "../components/PaymentModal";
 import LoanStats from "../components/LoanStats";
-// import CreditsScoreGauge from "../components/CreditsScoreGauge";
+// import CreditScoreGauge from "../components/CreditScoreGauge";
 import AdminSettings from "../components/AdminSettings";
 import InstallmentScheduleModal from "../components/InstallmentScheduleModal";
 import {
@@ -73,7 +74,6 @@ const AdminDashboard = () => {
 
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -90,23 +90,7 @@ const AdminDashboard = () => {
     end: "",
   });
 
-  // Check if mobile on mount and on resize
-  useEffect(() => {
-    const checkMobile = () => {
-      if (window.innerWidth < 768) {
-        setSidebarOpen(false);
-      } else {
-        setSidebarOpen(true);
-      }
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  // Define tabs array at the top, before any functions that use it
+  // Define tabs array
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: FiPieChart },
     { id: "users", label: "Users", icon: FiUsers },
@@ -184,6 +168,7 @@ const AdminDashboard = () => {
           headers = [
             "Loan Number",
             "Borrower",
+            "Type",
             "Amount",
             "Status",
             "Applied Date",
@@ -213,9 +198,16 @@ const AdminDashboard = () => {
               new Date(item.createdAt).toLocaleDateString(),
             ].join(",");
           } else if (type === "loans") {
+            const productTypeMap = {
+              one_month: "One Month",
+              installment: "Monthly Installment",
+              weekly: "Weekly",
+              daily: "Daily",
+            };
             return [
               item.loanNumber,
               `"${item.user?.firstName} ${item.user?.lastName}"`,
+              productTypeMap[item.productType] || item.productType,
               item.amount,
               item.status,
               new Date(item.applicationDate).toLocaleDateString(),
@@ -268,40 +260,90 @@ const AdminDashboard = () => {
   const paidLoans = getLoansByStatus("paid");
   const defaultedLoans = getLoansByStatus("defaulted");
 
-  // Responsive table rendering with card view for mobile
+  // Get loan counts by type
+  const oneMonthLoans =
+    loans?.filter((l) => l.productType === "one_month").length || 0;
+  const monthlyInstallmentLoans =
+    loans?.filter((l) => l.productType === "installment").length || 0;
+  const weeklyLoans =
+    loans?.filter((l) => l.productType === "weekly").length || 0;
+  const dailyLoans =
+    loans?.filter((l) => l.productType === "daily").length || 0;
+
+  // Get product type color and icon
+  const getProductTypeInfo = (type) => {
+    switch (type) {
+      case "one_month":
+        return {
+          bg: "bg-blue-100",
+          text: "text-blue-800",
+          label: "One Month",
+          icon: FiDollarSign,
+        };
+      case "installment":
+        return {
+          bg: "bg-purple-100",
+          text: "text-purple-800",
+          label: "Monthly",
+          icon: FiTrendingUp,
+        };
+      case "weekly":
+        return {
+          bg: "bg-green-100",
+          text: "text-green-800",
+          label: "Weekly",
+          icon: FiClock,
+        };
+      case "daily":
+        return {
+          bg: "bg-orange-100",
+          text: "text-orange-800",
+          label: "Daily",
+          icon: FiSun,
+        };
+      default:
+        return {
+          bg: "bg-gray-100",
+          text: "text-gray-800",
+          label: type,
+          icon: FiCreditCard,
+        };
+    }
+  };
+
+  // Define renderLoansTable function
   const renderLoansTable = (loansList, showActions = true) => (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-      {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Loan #
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Loan Number
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Borrower
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Type
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Amount
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Paid
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Balance
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Due Date
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Next Payment
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
               {showActions && (
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               )}
@@ -314,136 +356,198 @@ const AdminDashboard = () => {
               const canProcessPayment = ["approved", "partial"].includes(
                 loan.status,
               );
-              const isInstallment = loan.productType === "installment";
-              const paidInstallments =
-                loan.repaymentSchedule?.filter((i) => i.status === "paid")
+              const typeInfo = getProductTypeInfo(loan.productType);
+              const TypeIcon = typeInfo.icon;
+
+              const paidPeriods =
+                loan.repaymentSchedule?.filter((p) => p.status === "paid")
                   .length || 0;
-              const totalInstallments = loan.tenureMonths || 1;
+              const totalPeriods = loan.repaymentSchedule?.length || 0;
+              const nextPeriod = loan.repaymentSchedule?.find(
+                (p) => p.status === "pending",
+              );
+
+              // Get period amount based on product type
+              const getPeriodAmount = () => {
+                switch (loan.productType) {
+                  case "installment":
+                    return loan.installmentAmount;
+                  case "weekly":
+                    return loan.weeklyAmount;
+                  case "daily":
+                    return loan.dailyAmount;
+                  default:
+                    return null;
+                }
+              };
+
+              const periodAmount = getPeriodAmount();
 
               return (
                 <tr key={loan._id} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                  <td className="px-6 py-4 whitespace-nowrap font-medium">
                     {loan.loanNumber}
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium">
                       {loan.user?.firstName} {loan.user?.lastName}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-sm text-gray-500">
                       {loan.user?.email}
                     </div>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        isInstallment
-                          ? "bg-purple-100 text-purple-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {isInstallment ? "Installment" : "One Month"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm">
-                    KES {loan.amount?.toLocaleString() || 0}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-green-600">
-                    KES {loan.amountPaid?.toLocaleString() || 0}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-orange-600">
-                    KES {remainingBalance.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm">
-                    {isInstallment ? (
-                      <div>
-                        <div>
-                          Next:{" "}
-                          {loan.repaymentSchedule?.find(
-                            (i) => i.status === "pending",
-                          )?.dueDate
-                            ? new Date(
-                                loan.repaymentSchedule.find(
-                                  (i) => i.status === "pending",
-                                ).dueDate,
-                              ).toLocaleDateString()
-                            : "Completed"}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {paidInstallments}/{totalInstallments}
-                        </div>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${typeInfo.bg} ${typeInfo.text}`}
+                      >
+                        <TypeIcon className="mr-1" size={12} />
+                        {typeInfo.label}
+                      </span>
+                      {loan.productType !== "one_month" && (
+                        <span className="ml-2 text-xs text-gray-500">
+                          {loan.productType === "installment" &&
+                            `${loan.tenureMonths}m`}
+                          {loan.productType === "weekly" &&
+                            `${loan.tenureWeeks}w`}
+                          {loan.productType === "daily" &&
+                            `${loan.tenureDays}d`}
+                        </span>
+                      )}
+                    </div>
+                    {loan.productType !== "one_month" && totalPeriods > 0 && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {paidPeriods}/{totalPeriods} periods paid
                       </div>
-                    ) : loan.dueDate ? (
-                      new Date(loan.dueDate).toLocaleDateString()
-                    ) : (
-                      "N/A"
                     )}
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        loan.status === "approved"
-                          ? "bg-green-100 text-green-800"
-                          : loan.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : loan.status === "rejected"
-                              ? "bg-red-100 text-red-800"
-                              : loan.status === "paid"
-                                ? "bg-blue-100 text-blue-800"
-                                : loan.status === "partial"
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {loan.status}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="font-medium">
+                      KES {loan.amount?.toLocaleString() || 0}
+                    </div>
+                    {periodAmount && (
+                      <div className="text-xs text-gray-500">
+                        Per period: KES {periodAmount.toLocaleString()}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-green-600 font-medium">
+                      KES {loan.amountPaid?.toLocaleString() || 0}
                     </span>
                   </td>
-                  {showActions && (
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex flex-col space-y-1">
-                        {loan.status === "pending" && (
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="font-medium text-orange-600">
+                      KES {remainingBalance.toLocaleString()}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {loan.productType === "one_month" ? (
+                      <div>
+                        {loan.dueDate ? formatDate(loan.dueDate) : "N/A"}
+                      </div>
+                    ) : (
+                      <div>
+                        {nextPeriod ? (
                           <>
-                            <button
-                              onClick={() => handleApproveLoan(loan._id)}
-                              className="text-green-600 hover:text-green-900 text-xs bg-green-50 px-2 py-1 rounded"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleRejectLoan(loan._id)}
-                              className="text-red-600 hover:text-red-900 text-xs bg-red-50 px-2 py-1 rounded"
-                            >
-                              Reject
-                            </button>
+                            <div className="text-sm">
+                              {formatDate(nextPeriod.dueDate)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Period #{nextPeriod.periodNumber}: KES{" "}
+                              {nextPeriod.totalAmount.toLocaleString()}
+                            </div>
                           </>
+                        ) : (
+                          <span className="text-sm text-gray-500">
+                            Completed
+                          </span>
                         )}
-                        {canProcessPayment && (
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col space-y-1">
+                      <span
+                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          loan.status === "approved"
+                            ? "bg-green-100 text-green-800"
+                            : loan.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : loan.status === "rejected"
+                                ? "bg-red-100 text-red-800"
+                                : loan.status === "paid"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : loan.status === "partial"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {loan.status}
+                      </span>
+                      {loan.productType !== "one_month" &&
+                        loan.status === "partial" && (
+                          <span className="text-xs text-gray-500">
+                            {paidPeriods}/{totalPeriods} paid
+                          </span>
+                        )}
+                    </div>
+                  </td>
+                  {showActions && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex flex-col space-y-2">
+                        <div className="flex space-x-2">
+                          {loan.status === "pending" && (
+                            <>
+                              <button
+                                onClick={() => handleApproveLoan(loan._id)}
+                                className="text-green-600 hover:text-green-900 text-xs bg-green-50 px-2 py-1 rounded"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectLoan(loan._id)}
+                                className="text-red-600 hover:text-red-900 text-xs bg-red-50 px-2 py-1 rounded"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {canProcessPayment && (
+                            <button
+                              onClick={() => {
+                                setSelectedLoan(loan);
+                                setShowPaymentModal(true);
+                              }}
+                              className="text-primary-600 hover:text-primary-900 text-xs bg-primary-50 px-2 py-1 rounded"
+                            >
+                              Process Payment
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          {loan.productType !== "one_month" &&
+                            loan.repaymentSchedule && (
+                              <button
+                                onClick={() => {
+                                  setSelectedInstallmentLoan(loan);
+                                  setShowInstallmentSchedule(true);
+                                }}
+                                className="text-purple-600 hover:text-purple-900 text-xs bg-purple-50 px-2 py-1 rounded flex items-center"
+                              >
+                                <FiCalendar className="mr-1" size={12} />
+                                Schedule
+                              </button>
+                            )}
                           <button
-                            onClick={() => {
-                              setSelectedLoan(loan);
-                              setShowPaymentModal(true);
-                            }}
-                            className="text-primary-600 hover:text-primary-900 text-xs bg-primary-50 px-2 py-1 rounded"
+                            onClick={() => handleViewUser(loan.user?._id)}
+                            className="text-gray-600 hover:text-gray-900 text-xs bg-gray-50 px-2 py-1 rounded flex items-center"
+                            title="View User Details"
                           >
-                            Payment
+                            <FiEye size={12} className="mr-1" />
+                            User
                           </button>
-                        )}
-                        {isInstallment && loan.repaymentSchedule && (
-                          <button
-                            onClick={() => {
-                              setSelectedInstallmentLoan(loan);
-                              setShowInstallmentSchedule(true);
-                            }}
-                            className="text-purple-600 hover:text-purple-900 text-xs bg-purple-50 px-2 py-1 rounded"
-                          >
-                            Schedule
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleViewUser(loan.user?._id)}
-                          className="text-gray-600 hover:text-gray-900 text-xs bg-gray-50 px-2 py-1 rounded"
-                        >
-                          View User
-                        </button>
+                        </div>
                       </div>
                     </td>
                   )}
@@ -453,537 +557,336 @@ const AdminDashboard = () => {
           </tbody>
         </table>
       </div>
-
-      {/* Mobile Card View */}
-      <div className="md:hidden space-y-4 p-4">
-        {loansList.map((loan) => {
-          const remainingBalance = loan.totalAmount - (loan.amountPaid || 0);
-          const isInstallment = loan.productType === "installment";
-          const paidInstallments =
-            loan.repaymentSchedule?.filter((i) => i.status === "paid").length ||
-            0;
-          const totalInstallments = loan.tenureMonths || 1;
-
-          return (
-            <div key={loan._id} className="bg-gray-50 rounded-lg p-4 space-y-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="font-semibold text-sm">
-                    {loan.loanNumber}
-                  </span>
-                  <div className="text-sm font-medium mt-1">
-                    {loan.user?.firstName} {loan.user?.lastName}
-                  </div>
-                </div>
-                <span
-                  className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    loan.status === "approved"
-                      ? "bg-green-100 text-green-800"
-                      : loan.status === "pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : loan.status === "rejected"
-                          ? "bg-red-100 text-red-800"
-                          : loan.status === "paid"
-                            ? "bg-blue-100 text-blue-800"
-                            : loan.status === "partial"
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  {loan.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-gray-500 text-xs">Type:</span>
-                  <div>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs ${
-                        isInstallment
-                          ? "bg-purple-100 text-purple-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {isInstallment ? "Installment" : "One Month"}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs">Amount:</span>
-                  <div className="font-medium">
-                    KES {loan.amount?.toLocaleString() || 0}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs">Paid:</span>
-                  <div className="text-green-600">
-                    KES {loan.amountPaid?.toLocaleString() || 0}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs">Balance:</span>
-                  <div className="text-orange-600">
-                    KES {remainingBalance.toLocaleString()}
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-gray-500 text-xs">Due Date:</span>
-                  <div>
-                    {isInstallment ? (
-                      <>
-                        Next:{" "}
-                        {loan.repaymentSchedule?.find(
-                          (i) => i.status === "pending",
-                        )?.dueDate
-                          ? new Date(
-                              loan.repaymentSchedule.find(
-                                (i) => i.status === "pending",
-                              ).dueDate,
-                            ).toLocaleDateString()
-                          : "Completed"}
-                        <span className="text-xs text-gray-500 ml-2">
-                          ({paidInstallments}/{totalInstallments})
-                        </span>
-                      </>
-                    ) : loan.dueDate ? (
-                      new Date(loan.dueDate).toLocaleDateString()
-                    ) : (
-                      "N/A"
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {showActions && (
-                <div className="flex flex-wrap gap-2 pt-2 border-t">
-                  {loan.status === "pending" && (
-                    <>
-                      <button
-                        onClick={() => handleApproveLoan(loan._id)}
-                        className="flex-1 text-green-600 hover:text-green-900 text-xs bg-green-50 px-2 py-2 rounded"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleRejectLoan(loan._id)}
-                        className="flex-1 text-red-600 hover:text-red-900 text-xs bg-red-50 px-2 py-2 rounded"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                  {["approved", "partial"].includes(loan.status) && (
-                    <button
-                      onClick={() => {
-                        setSelectedLoan(loan);
-                        setShowPaymentModal(true);
-                      }}
-                      className="flex-1 text-primary-600 hover:text-primary-900 text-xs bg-primary-50 px-2 py-2 rounded"
-                    >
-                      Process Payment
-                    </button>
-                  )}
-                  {isInstallment && loan.repaymentSchedule && (
-                    <button
-                      onClick={() => {
-                        setSelectedInstallmentLoan(loan);
-                        setShowInstallmentSchedule(true);
-                      }}
-                      className="flex-1 text-purple-600 hover:text-purple-900 text-xs bg-purple-50 px-2 py-2 rounded"
-                    >
-                      View Schedule
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleViewUser(loan.user?._id)}
-                    className="flex-1 text-gray-600 hover:text-gray-900 text-xs bg-gray-50 px-2 py-2 rounded"
-                  >
-                    View User
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 
   // Define renderDashboard function
   const renderDashboard = () => (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Stats Cards - Responsive Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm">
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-xs sm:text-sm">Total Users</p>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-bold mt-1">
-                {users?.length || 0}
-              </p>
+              <p className="text-gray-500 text-sm">Total Users</p>
+              <p className="text-3xl font-bold mt-1">{users?.length || 0}</p>
             </div>
-            <div className="bg-blue-100 p-2 sm:p-3 rounded-lg">
-              <FiUsers className="text-blue-600 text-lg sm:text-xl" />
+            <div className="bg-blue-100 p-3 rounded-lg">
+              <FiUsers className="text-blue-600 text-xl" />
             </div>
+          </div>
+          <div className="mt-4 flex items-center text-sm text-green-600">
+            <FiArrowUp className="mr-1" />
+            <span>12% from last month</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm">
+        <div className="bg-white rounded-xl p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-xs sm:text-sm">Total Loans</p>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-bold mt-1">
-                {loans?.length || 0}
-              </p>
+              <p className="text-gray-500 text-sm">Total Loans</p>
+              <p className="text-3xl font-bold mt-1">{loans?.length || 0}</p>
             </div>
-            <div className="bg-green-100 p-2 sm:p-3 rounded-lg">
-              <FiCreditCard className="text-green-600 text-lg sm:text-xl" />
+            <div className="bg-green-100 p-3 rounded-lg">
+              <FiCreditCard className="text-green-600 text-xl" />
             </div>
+          </div>
+          <div className="mt-4 flex items-center text-sm text-green-600">
+            <FiArrowUp className="mr-1" />
+            <span>8% from last month</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm">
+        <div className="bg-white rounded-xl p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-xs sm:text-sm">Total Amount</p>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-bold mt-1">
+              <p className="text-gray-500 text-sm">Total Amount</p>
+              <p className="text-3xl font-bold mt-1">
                 KES{" "}
                 {loans
                   ?.reduce((sum, loan) => sum + loan.amount, 0)
                   .toLocaleString()}
               </p>
             </div>
-            <div className="bg-purple-100 p-2 sm:p-3 rounded-lg">
-              <FiDollarSign className="text-purple-600 text-lg sm:text-xl" />
+            <div className="bg-purple-100 p-3 rounded-lg">
+              <FiDollarSign className="text-purple-600 text-xl" />
             </div>
+          </div>
+          <div className="mt-4 flex items-center text-sm text-green-600">
+            <FiArrowUp className="mr-1" />
+            <span>15% from last month</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm">
+        <div className="bg-white rounded-xl p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-gray-500 text-xs sm:text-sm">
-                Pending Approvals
-              </p>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-bold mt-1">
-                {pendingLoans.length}
-              </p>
+              <p className="text-gray-500 text-sm">Pending Approvals</p>
+              <p className="text-3xl font-bold mt-1">{pendingLoans.length}</p>
             </div>
-            <div className="bg-yellow-100 p-2 sm:p-3 rounded-lg">
-              <FiClock className="text-yellow-600 text-lg sm:text-xl" />
+            <div className="bg-yellow-100 p-3 rounded-lg">
+              <FiClock className="text-yellow-600 text-xl" />
             </div>
+          </div>
+          <div className="mt-4 flex items-center text-sm text-yellow-600">
+            <FiAlertCircle className="mr-1" />
+            <span>Requires attention</span>
           </div>
         </div>
       </div>
 
-      {/* Charts - Stack on mobile */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm">
-          <h3 className="text-base sm:text-lg font-semibold mb-4">
-            Loan Distribution
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Loan Status Distribution */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">
+            Loan Status Distribution
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <h4 className="text-xs sm:text-sm font-medium text-gray-500 mb-2">
-                By Status
-              </h4>
-              <div className="h-48 sm:h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={[
-                        {
-                          name: "Pending",
-                          value: pendingLoans.length,
-                          color: "#FBBF24",
-                        },
-                        {
-                          name: "Approved",
-                          value: approvedLoans.length,
-                          color: "#34D399",
-                        },
-                        {
-                          name: "Partial",
-                          value: partialLoans.length,
-                          color: "#60A5FA",
-                        },
-                        {
-                          name: "Paid",
-                          value: paidLoans.length,
-                          color: "#10B981",
-                        },
-                        {
-                          name: "Defaulted",
-                          value: defaultedLoans.length,
-                          color: "#EF4444",
-                        },
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={60}
-                      dataKey="value"
-                    >
-                      {[
-                        { color: "#FBBF24" },
-                        { color: "#34D399" },
-                        { color: "#60A5FA" },
-                        { color: "#10B981" },
-                        { color: "#EF4444" },
-                      ].map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={[
+                  {
+                    name: "Pending",
+                    value: pendingLoans.length,
+                    color: "#FBBF24",
+                  },
+                  {
+                    name: "Approved",
+                    value: approvedLoans.length,
+                    color: "#34D399",
+                  },
+                  {
+                    name: "Partial",
+                    value: partialLoans.length,
+                    color: "#60A5FA",
+                  },
+                  { name: "Paid", value: paidLoans.length, color: "#10B981" },
+                  {
+                    name: "Defaulted",
+                    value: defaultedLoans.length,
+                    color: "#EF4444",
+                  },
+                ]}
+                cx="50%"
+                cy="50%"
+                outerRadius={60}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {[
+                  { color: "#FBBF24" },
+                  { color: "#34D399" },
+                  { color: "#60A5FA" },
+                  { color: "#10B981" },
+                  { color: "#EF4444" },
+                ].map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
 
-            <div>
-              <h4 className="text-xs sm:text-sm font-medium text-gray-500 mb-2">
-                By Loan Type
-              </h4>
-              <div className="h-48 sm:h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={[
-                        {
-                          name: "One Month",
-                          value:
-                            loans?.filter((l) => l.productType === "one_month")
-                              .length || 0,
-                          color: "#3B82F6",
-                        },
-                        {
-                          name: "Installment",
-                          value:
-                            loans?.filter(
-                              (l) => l.productType === "installment",
-                            ).length || 0,
-                          color: "#8B5CF6",
-                        },
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={60}
-                      dataKey="value"
-                    >
-                      <Cell fill="#3B82F6" />
-                      <Cell fill="#8B5CF6" />
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+        {/* Loan Type Distribution */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">Loan Type Distribution</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={[
+                  { name: "One Month", value: oneMonthLoans, color: "#3B82F6" },
+                  {
+                    name: "Monthly",
+                    value: monthlyInstallmentLoans,
+                    color: "#8B5CF6",
+                  },
+                  { name: "Weekly", value: weeklyLoans, color: "#10B981" },
+                  { name: "Daily", value: dailyLoans, color: "#F59E0B" },
+                ]}
+                cx="50%"
+                cy="50%"
+                outerRadius={60}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                <Cell fill="#3B82F6" />
+                <Cell fill="#8B5CF6" />
+                <Cell fill="#10B981" />
+                <Cell fill="#F59E0B" />
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="bg-blue-50 p-2 rounded-lg text-center">
+              <p className="text-xs text-blue-600">One Month</p>
+              <p className="text-lg font-bold">{oneMonthLoans}</p>
+            </div>
+            <div className="bg-purple-50 p-2 rounded-lg text-center">
+              <p className="text-xs text-purple-600">Monthly</p>
+              <p className="text-lg font-bold">{monthlyInstallmentLoans}</p>
+            </div>
+            <div className="bg-green-50 p-2 rounded-lg text-center">
+              <p className="text-xs text-green-600">Weekly</p>
+              <p className="text-lg font-bold">{weeklyLoans}</p>
+            </div>
+            <div className="bg-orange-50 p-2 rounded-lg text-center">
+              <p className="text-xs text-orange-600">Daily</p>
+              <p className="text-lg font-bold">{dailyLoans}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm">
-          <h3 className="text-base sm:text-lg font-semibold mb-4">
-            Monthly Loan Trends
-          </h3>
-          <div className="h-64 sm:h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={stats?.monthly || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="_id" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: "12px" }} />
-                <Line
-                  type="monotone"
-                  dataKey="totalAmount"
-                  stroke="#3B82F6"
-                  name="Amount"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="totalLoans"
-                  stroke="#10B981"
-                  name="Loans"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+        {/* Monthly Loan Trends */}
+        <div className="bg-white rounded-xl p-6 shadow-sm lg:col-span-2">
+          <h3 className="text-lg font-semibold mb-4">Monthly Loan Trends</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={stats?.monthly || []}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="_id" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="totalAmount"
+                stroke="#3B82F6"
+                name="Amount"
+              />
+              <Line
+                type="monotone"
+                dataKey="totalLoans"
+                stroke="#10B981"
+                name="Loans"
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Recent Loans - Responsive */}
+      {/* Recent Loans */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-6 border-b">
-          <h3 className="text-base sm:text-lg font-semibold">
-            Recent Loan Applications
-          </h3>
+        <div className="p-6 border-b">
+          <h3 className="text-lg font-semibold">Recent Loan Applications</h3>
         </div>
-
-        {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Loan #
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Loan Number
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Borrower
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Type
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {loans?.slice(0, 5).map((loan) => (
-                <tr key={loan._id} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                    {loan.loanNumber}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm">
-                    {loan.user?.firstName} {loan.user?.lastName}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        loan.productType === "installment"
-                          ? "bg-purple-100 text-purple-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {loan.productType === "installment"
-                        ? "Installment"
-                        : "One Month"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm">
-                    KES {loan.amount.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                        loan.status === "approved"
-                          ? "bg-green-100 text-green-800"
-                          : loan.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : loan.status === "paid"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {loan.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm">
-                    {new Date(loan.applicationDate).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-sm">
-                    <button
-                      onClick={() => handleViewUser(loan.user?._id)}
-                      className="text-primary-600 hover:text-primary-900 mr-3"
-                    >
-                      <FiEye />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {loans?.slice(0, 5).map((loan) => {
+                const typeInfo = getProductTypeInfo(loan.productType);
+                const TypeIcon = typeInfo.icon;
+
+                return (
+                  <tr key={loan._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap font-medium">
+                      {loan.loanNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {loan.user?.firstName} {loan.user?.lastName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${typeInfo.bg} ${typeInfo.text}`}
+                      >
+                        <TypeIcon className="mr-1" size={12} />
+                        {typeInfo.label}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      KES {loan.amount.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          loan.status === "approved"
+                            ? "bg-green-100 text-green-800"
+                            : loan.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : loan.status === "rejected"
+                                ? "bg-red-100 text-red-800"
+                                : loan.status === "paid"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : loan.status === "partial"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {loan.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {new Date(loan.applicationDate).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleViewUser(loan.user?._id)}
+                        className="text-primary-600 hover:text-primary-900 mr-3"
+                      >
+                        <FiEye />
+                      </button>
+                      {loan.productType !== "one_month" &&
+                        loan.repaymentSchedule && (
+                          <button
+                            onClick={() => {
+                              setSelectedInstallmentLoan(loan);
+                              setShowInstallmentSchedule(true);
+                            }}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="View Schedule"
+                          >
+                            <FiCalendar size={18} />
+                          </button>
+                        )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="md:hidden p-4 space-y-3">
-          {loans?.slice(0, 5).map((loan) => (
-            <div key={loan._id} className="bg-gray-50 rounded-lg p-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="font-medium text-sm">{loan.loanNumber}</span>
-                  <div className="text-sm mt-1">
-                    {loan.user?.firstName} {loan.user?.lastName}
-                  </div>
-                </div>
-                <span
-                  className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    loan.status === "approved"
-                      ? "bg-green-100 text-green-800"
-                      : loan.status === "pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  {loan.status}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                <div>
-                  <span className="text-gray-500 text-xs">Type:</span>
-                  <div>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs ${
-                        loan.productType === "installment"
-                          ? "bg-purple-100 text-purple-800"
-                          : "bg-blue-100 text-blue-800"
-                      }`}
-                    >
-                      {loan.productType === "installment"
-                        ? "Installment"
-                        : "One Month"}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs">Amount:</span>
-                  <div className="font-medium">
-                    KES {loan.amount.toLocaleString()}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs">Date:</span>
-                  <div>
-                    {new Date(loan.applicationDate).toLocaleDateString()}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-2 pt-2 border-t flex justify-end">
-                <button
-                  onClick={() => handleViewUser(loan.user?._id)}
-                  className="text-primary-600 hover:text-primary-900 text-sm flex items-center"
-                >
-                  <FiEye className="mr-1" /> View User
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>
   );
 
-  // Define renderUsers function with responsive design
+  // Define renderUsers function
   const renderUsers = () => (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-6">
       {/* Search and Filter */}
       <div className="bg-white rounded-xl p-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-          <div className="relative flex-1 max-w-full sm:max-w-md">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+          <div className="relative flex-1 max-w-md">
             <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search users..."
-              className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+              placeholder="Search users by name, email, or ID..."
+              className="input-field pl-10"
               value={filters.search}
               onChange={(e) =>
                 setFilters({ ...filters, search: e.target.value })
@@ -992,39 +895,39 @@ const AdminDashboard = () => {
           </div>
           <button
             onClick={() => handleExport("users")}
-            className="flex items-center justify-center space-x-2 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm"
+            className="flex items-center space-x-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
           >
-            <FiDownload size={16} />
+            <FiDownload />
             <span>Export</span>
           </button>
         </div>
       </div>
 
-      {/* Desktop Users Table */}
-      <div className="hidden md:block bg-white rounded-xl shadow-sm overflow-hidden">
+      {/* Users Table */}
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Contact
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   ID Number
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Credit Score
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Total Loans
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -1046,60 +949,67 @@ const AdminDashboard = () => {
                 )
                 .map((user) => (
                   <tr key={user._id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10">
+                        <div className="flex-shrink-0 h-10 w-10">
                           {user.profilePhoto?.url ? (
                             <img
-                              className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover"
+                              className="h-10 w-10 rounded-full object-cover"
                               src={user.profilePhoto.url}
                               alt=""
                             />
                           ) : (
-                            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                              <FiUser className="text-gray-500 text-sm" />
+                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                              <FiUser className="text-gray-500" />
                             </div>
                           )}
                         </div>
-                        <div className="ml-3">
+                        <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
                             {user.firstName} {user.lastName}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-sm text-gray-500">
                             {user.email}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {user.phoneNumbers?.[0]?.number}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {user.phoneNumbers?.[0]?.number}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {user.phoneNumbers?.[1]?.number}
+                      </div>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {user.idNumber}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                        <div
+                          className={`w-16 h-2 rounded-full mr-2 ${
+                            user.creditScore >= 70
+                              ? "bg-green-500"
+                              : user.creditScore >= 40
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
+                          }`}
+                        >
                           <div
-                            className={`h-2 rounded-full ${
-                              user.creditScore >= 70
-                                ? "bg-green-500"
-                                : user.creditScore >= 40
-                                  ? "bg-yellow-500"
-                                  : "bg-red-500"
-                            }`}
+                            className="h-2 rounded-full bg-gray-300"
                             style={{ width: `${user.creditScore}%` }}
                           ></div>
                         </div>
-                        <span className="text-xs">{user.creditScore}</span>
+                        <span className="text-sm">{user.creditScore}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {user.stats?.totalLoans || 0}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           user.isProfileComplete
                             ? "bg-green-100 text-green-800"
                             : "bg-yellow-100 text-yellow-800"
@@ -1108,10 +1018,10 @@ const AdminDashboard = () => {
                         {user.isProfileComplete ? "Complete" : "Incomplete"}
                       </span>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
                         onClick={() => handleViewUser(user._id)}
-                        className="text-primary-600 hover:text-primary-900"
+                        className="text-primary-600 hover:text-primary-900 mr-3"
                       >
                         View
                       </button>
@@ -1122,104 +1032,10 @@ const AdminDashboard = () => {
           </table>
         </div>
       </div>
-
-      {/* Mobile Users Cards */}
-      <div className="md:hidden space-y-3">
-        {users
-          ?.filter(
-            (user) =>
-              user.firstName
-                ?.toLowerCase()
-                .includes(filters.search.toLowerCase()) ||
-              user.lastName
-                ?.toLowerCase()
-                .includes(filters.search.toLowerCase()) ||
-              user.email
-                ?.toLowerCase()
-                .includes(filters.search.toLowerCase()) ||
-              user.idNumber?.includes(filters.search),
-          )
-          .map((user) => (
-            <div key={user._id} className="bg-white rounded-lg shadow-sm p-4">
-              <div className="flex items-center mb-3">
-                <div className="flex-shrink-0 h-10 w-10">
-                  {user.profilePhoto?.url ? (
-                    <img
-                      className="h-10 w-10 rounded-full object-cover"
-                      src={user.profilePhoto.url}
-                      alt=""
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                      <FiUser className="text-gray-500" />
-                    </div>
-                  )}
-                </div>
-                <div className="ml-3 flex-1">
-                  <div className="font-medium">
-                    {user.firstName} {user.lastName}
-                  </div>
-                  <div className="text-xs text-gray-500">{user.email}</div>
-                </div>
-                <span
-                  className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    user.isProfileComplete
-                      ? "bg-green-100 text-green-800"
-                      : "bg-yellow-100 text-yellow-800"
-                  }`}
-                >
-                  {user.isProfileComplete ? "Complete" : "Incomplete"}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-gray-500 text-xs">Phone:</span>
-                  <div>{user.phoneNumbers?.[0]?.number || "N/A"}</div>
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs">ID Number:</span>
-                  <div>{user.idNumber}</div>
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs">Credit Score:</span>
-                  <div className="flex items-center">
-                    <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          user.creditScore >= 70
-                            ? "bg-green-500"
-                            : user.creditScore >= 40
-                              ? "bg-yellow-500"
-                              : "bg-red-500"
-                        }`}
-                        style={{ width: `${user.creditScore}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-xs">{user.creditScore}</span>
-                  </div>
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs">Total Loans:</span>
-                  <div>{user.stats?.totalLoans || 0}</div>
-                </div>
-              </div>
-
-              <div className="mt-3 pt-3 border-t flex justify-end">
-                <button
-                  onClick={() => handleViewUser(user._id)}
-                  className="text-primary-600 hover:text-primary-900 text-sm font-medium"
-                >
-                  View Details
-                </button>
-              </div>
-            </div>
-          ))}
-      </div>
     </div>
   );
 
-  // Admin Management Component with responsive design
+  // Admin Management Component
   const AdminManagement = () => {
     const [admins, setAdmins] = useState([]);
     const [users, setUsers] = useState([]);
@@ -1271,7 +1087,11 @@ const AdminDashboard = () => {
     };
 
     const handleDemoteFromAdmin = async (adminId) => {
-      if (!window.confirm("Are you sure you want to demote this admin?"))
+      if (
+        !window.confirm(
+          "Are you sure you want to demote this admin? They will lose all admin privileges.",
+        )
+      )
         return;
 
       try {
@@ -1289,41 +1109,41 @@ const AdminDashboard = () => {
     );
 
     return (
-      <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
-          <h2 className="text-xl sm:text-2xl font-bold">Admin Management</h2>
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Admin Management</h2>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="btn-primary flex items-center justify-center space-x-2 px-4 py-2 text-sm"
+            className="btn-primary flex items-center space-x-2"
           >
             <FiUserPlus />
             <span>Create New Admin</span>
           </button>
         </div>
 
-        {/* Current Admins - Desktop Table */}
-        <div className="hidden md:block bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="p-4 border-b">
+        {/* Current Admins */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="p-6 border-b">
             <h3 className="text-lg font-semibold">Current Administrators</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Admin
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     ID Number
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created At
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -1331,34 +1151,34 @@ const AdminDashboard = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {admins.map((admin) => (
                   <tr key={admin._id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center">
-                          <FiShield className="text-primary-600 text-sm" />
+                        <div className="flex-shrink-0 h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center">
+                          <FiShield className="text-primary-600" />
                         </div>
-                        <div className="ml-3">
-                          <div className="text-sm font-medium">
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
                             {admin.firstName} {admin.lastName}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {admin.email}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {admin.idNumber}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(admin.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm">
-                      {admin.email !== "admin@speed-cash.com" && (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      {admin.email !== "admin@speedycash.co.ke" && (
                         <button
                           onClick={() => handleDemoteFromAdmin(admin._id)}
                           className="text-red-600 hover:text-red-900"
                         >
-                          Demote
+                          Demote to User
                         </button>
                       )}
                     </td>
@@ -1369,80 +1189,38 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Current Admins - Mobile Cards */}
-        <div className="md:hidden space-y-3">
-          <h3 className="text-lg font-semibold px-1">Current Administrators</h3>
-          {admins.map((admin) => (
-            <div key={admin._id} className="bg-white rounded-lg shadow-sm p-4">
-              <div className="flex items-center mb-3">
-                <div className="flex-shrink-0 h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center">
-                  <FiShield className="text-primary-600" />
-                </div>
-                <div className="ml-3 flex-1">
-                  <div className="font-medium">
-                    {admin.firstName} {admin.lastName}
-                  </div>
-                  <div className="text-xs text-gray-500">{admin.email}</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-gray-500 text-xs">ID Number:</span>
-                  <div>{admin.idNumber}</div>
-                </div>
-                <div>
-                  <span className="text-gray-500 text-xs">Created:</span>
-                  <div>{new Date(admin.createdAt).toLocaleDateString()}</div>
-                </div>
-              </div>
-              {admin.email !== "admin@speed-cash.com" && (
-                <div className="mt-3 pt-3 border-t">
-                  <button
-                    onClick={() => handleDemoteFromAdmin(admin._id)}
-                    className="text-red-600 hover:text-red-900 text-sm"
-                  >
-                    Demote to User
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
         {/* Promote Users Section */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="p-4 border-b">
+          <div className="p-6 border-b">
             <h3 className="text-lg font-semibold">Promote Users to Admin</h3>
-            <div className="mt-3 relative">
+            <div className="mt-4 relative">
               <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search users..."
-                className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm"
+                placeholder="Search users by name or email..."
+                className="input-field pl-10"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
-
-          {/* Desktop Table */}
-          <div className="hidden md:block overflow-x-auto">
+          <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     User
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     ID Number
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Loans
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -1464,107 +1242,49 @@ const AdminDashboard = () => {
                   )
                   .map((user) => (
                     <tr key={user._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-8 w-8">
+                          <div className="flex-shrink-0 h-10 w-10">
                             {user.profilePhoto?.url ? (
                               <img
-                                className="h-8 w-8 rounded-full object-cover"
+                                className="h-10 w-10 rounded-full object-cover"
                                 src={user.profilePhoto.url}
                                 alt=""
                               />
                             ) : (
-                              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                <FiUser className="text-gray-500 text-sm" />
+                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                <FiUser className="text-gray-500" />
                               </div>
                             )}
                           </div>
-                          <div className="ml-3">
-                            <div className="text-sm font-medium">
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">
                               {user.firstName} {user.lastName}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {user.email}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {user.idNumber}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {user.stats?.totalLoans || 0}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
                           onClick={() => handlePromoteToAdmin(user._id)}
                           className="text-primary-600 hover:text-primary-900"
                         >
-                          Promote
+                          Promote to Admin
                         </button>
                       </td>
                     </tr>
                   ))}
               </tbody>
             </table>
-          </div>
-
-          {/* Mobile Cards */}
-          <div className="md:hidden p-4 space-y-3">
-            {nonAdminUsers
-              .filter(
-                (user) =>
-                  user.firstName
-                    ?.toLowerCase()
-                    .includes(searchTerm.toLowerCase()) ||
-                  user.lastName
-                    ?.toLowerCase()
-                    .includes(searchTerm.toLowerCase()) ||
-                  user.email
-                    ?.toLowerCase()
-                    .includes(searchTerm.toLowerCase()) ||
-                  user.idNumber?.includes(searchTerm),
-              )
-              .map((user) => (
-                <div key={user._id} className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center mb-2">
-                    <div className="flex-shrink-0 h-8 w-8">
-                      {user.profilePhoto?.url ? (
-                        <img
-                          className="h-8 w-8 rounded-full object-cover"
-                          src={user.profilePhoto.url}
-                          alt=""
-                        />
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                          <FiUser className="text-gray-500 text-sm" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="ml-3 flex-1">
-                      <div className="font-medium text-sm">
-                        {user.firstName} {user.lastName}
-                      </div>
-                      <div className="text-xs text-gray-500">{user.email}</div>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs mb-2">
-                    <div>
-                      <span className="text-gray-500">ID:</span> {user.idNumber}
-                    </div>
-                    <div>
-                      <span className="text-gray-500">Loans:</span>{" "}
-                      {user.stats?.totalLoans || 0}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handlePromoteToAdmin(user._id)}
-                    className="w-full text-primary-600 hover:text-primary-900 text-sm border border-primary-200 rounded py-1"
-                  >
-                    Promote to Admin
-                  </button>
-                </div>
-              ))}
           </div>
         </div>
 
@@ -1582,7 +1302,7 @@ const AdminDashboard = () => {
     );
   };
 
-  // Define renderTabContent function that uses all the above functions
+  // Define renderTabContent function
   const renderTabContent = () => {
     switch (activeTab) {
       case "dashboard":
@@ -1591,13 +1311,13 @@ const AdminDashboard = () => {
         return renderUsers();
       case "loans":
         return (
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-6">
             <div className="bg-white rounded-xl p-4 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-                <h2 className="text-lg sm:text-xl font-semibold">All Loans</h2>
-                <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+                <h2 className="text-xl font-semibold">All Loans</h2>
+                <div className="flex space-x-2">
                   <select
-                    className="flex-1 sm:flex-none input-field text-sm px-3 py-2 border rounded-lg"
+                    className="input-field w-40"
                     value={filters.status}
                     onChange={(e) =>
                       setFilters({ ...filters, status: e.target.value })
@@ -1610,9 +1330,22 @@ const AdminDashboard = () => {
                     <option value="paid">Paid</option>
                     <option value="defaulted">Defaulted</option>
                   </select>
+                  <select
+                    className="input-field w-40"
+                    value={filters.productType || ""}
+                    onChange={(e) =>
+                      setFilters({ ...filters, productType: e.target.value })
+                    }
+                  >
+                    <option value="">All Types</option>
+                    <option value="one_month">One Month</option>
+                    <option value="installment">Monthly Installment</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="daily">Daily</option>
+                  </select>
                   <input
                     type="month"
-                    className="flex-1 sm:flex-none input-field text-sm px-3 py-2 border rounded-lg"
+                    className="input-field w-40"
                     onChange={(e) => {
                       const [year, month] = e.target.value.split("-");
                       setFilters({ ...filters, year, month });
@@ -1620,9 +1353,9 @@ const AdminDashboard = () => {
                   />
                   <button
                     onClick={() => handleExport("loans")}
-                    className="flex items-center justify-center space-x-2 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm"
+                    className="flex items-center space-x-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
                   >
-                    <FiDownload size={16} />
+                    <FiDownload />
                     <span>Export</span>
                   </button>
                 </div>
@@ -1633,8 +1366,8 @@ const AdminDashboard = () => {
         );
       case "pending":
         return (
-          <div className="space-y-4 sm:space-y-6">
-            <h2 className="text-lg sm:text-xl font-semibold">
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">
               Pending Loans ({pendingLoans.length})
             </h2>
             {renderLoansTable(pendingLoans)}
@@ -1642,8 +1375,8 @@ const AdminDashboard = () => {
         );
       case "approved":
         return (
-          <div className="space-y-4 sm:space-y-6">
-            <h2 className="text-lg sm:text-xl font-semibold">
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">
               Approved Loans ({approvedLoans.length})
             </h2>
             {renderLoansTable(approvedLoans)}
@@ -1651,8 +1384,8 @@ const AdminDashboard = () => {
         );
       case "partial":
         return (
-          <div className="space-y-4 sm:space-y-6">
-            <h2 className="text-lg sm:text-xl font-semibold">
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">
               Partial Loans ({partialLoans.length})
             </h2>
             {renderLoansTable(partialLoans)}
@@ -1660,8 +1393,8 @@ const AdminDashboard = () => {
         );
       case "paid":
         return (
-          <div className="space-y-4 sm:space-y-6">
-            <h2 className="text-lg sm:text-xl font-semibold">
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">
               Paid Loans ({paidLoans.length})
             </h2>
             {renderLoansTable(paidLoans)}
@@ -1669,8 +1402,8 @@ const AdminDashboard = () => {
         );
       case "defaulted":
         return (
-          <div className="space-y-4 sm:space-y-6">
-            <h2 className="text-lg sm:text-xl font-semibold">
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold">
               Defaulted Loans ({defaultedLoans.length})
             </h2>
             {renderLoansTable(defaultedLoans)}
@@ -1687,7 +1420,7 @@ const AdminDashboard = () => {
         );
       case "settings":
         return (
-          <div className="max-w-4xl mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
             <AdminSettings />
           </div>
         );
@@ -1700,99 +1433,45 @@ const AdminDashboard = () => {
     <>
       <Helmet>
         <title>Admin Dashboard - Speedy Cash Solutions</title>
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-        />
       </Helmet>
 
-      <div className="min-h-screen bg-gray-50">
-        {/* Mobile Header */}
-        <div className="md:hidden fixed top-0 left-0 right-0 bg-white shadow-sm z-20 px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg hover:bg-gray-100 mr-3"
-            >
-              <FiMenu size={24} />
-            </button>
-            <span className="text-xl font-bold text-primary-600">
-              SpeedyCash
-            </span>
-          </div>
-          <div className="flex items-center">
-            {user?.profilePhoto?.url ? (
-              <img
-                src={user.profilePhoto.url}
-                alt="Profile"
-                className="w-8 h-8 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                <FiUser className="text-primary-600" size={16} />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Mobile Sidebar Overlay */}
-        {mobileMenuOpen && (
-          <div
-            className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-        )}
-
-        {/* Sidebar - Desktop (fixed) and Mobile (slide-over) */}
+      <div className="min-h-screen bg-gray-50 flex">
+        {/* Sidebar */}
         <div
-          className={`
-            fixed top-0 left-0 h-full bg-white shadow-lg z-40 transition-transform duration-300
-            ${sidebarOpen && !mobileMenuOpen ? "hidden md:block md:w-64" : ""}
-            ${mobileMenuOpen ? "translate-x-0 w-64" : "-translate-x-full w-64"}
-            md:translate-x-0 md:w-64
-          `}
+          className={`${
+            sidebarOpen ? "w-64" : "w-20"
+          } bg-white shadow-lg transition-all duration-300 flex flex-col fixed h-full z-10 left-0 top-0`}
         >
           {/* Logo */}
           <div className="h-16 flex items-center justify-between px-4 border-b">
-            <div>
-              <span className="text-xl font-bold text-primary-600">
-                SpeedyCash
+            {sidebarOpen ? (
+              <div>
+                <span className="text-xl font-bold text-primary-600">
+                  SpeedyCash
+                </span>
+                <span className="block text-xs text-gray-500">Admin</span>
+              </div>
+            ) : (
+              <span className="text-2xl font-bold text-primary-600 mx-auto">
+                SC
               </span>
-              <span className="block text-xs text-gray-500">Admin</span>
-            </div>
+            )}
             <button
-              onClick={() => {
-                if (window.innerWidth < 768) {
-                  setMobileMenuOpen(false);
-                } else {
-                  setSidebarOpen(!sidebarOpen);
-                }
-              }}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-1 rounded-lg hover:bg-gray-100"
             >
-              {window.innerWidth < 768 ? (
-                <FiX size={20} />
-              ) : sidebarOpen ? (
-                <FiX size={20} />
-              ) : (
-                <FiMenu size={20} />
-              )}
+              {sidebarOpen ? <FiX size={20} /> : <FiMenu size={20} />}
             </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-3 overflow-y-auto h-[calc(100%-8rem)]">
+          <nav className="flex-1 p-3 overflow-y-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    if (window.innerWidth < 768) {
-                      setMobileMenuOpen(false);
-                    }
-                  }}
+                  onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center px-3 py-3 mb-1 rounded-lg transition-colors ${
                     activeTab === tab.id
                       ? "bg-primary-50 text-primary-700"
@@ -1800,16 +1479,18 @@ const AdminDashboard = () => {
                   }`}
                 >
                   <Icon size={20} className="flex-shrink-0" />
-                  <span className="ml-3 text-sm font-medium truncate">
-                    {tab.label}
-                  </span>
+                  {sidebarOpen && (
+                    <span className="ml-3 text-sm font-medium truncate">
+                      {tab.label}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </nav>
 
           {/* Admin Info */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
+          <div className="p-4 border-t">
             <div className="flex items-center">
               {user?.profilePhoto?.url ? (
                 <img
@@ -1822,26 +1503,34 @@ const AdminDashboard = () => {
                   <FiUser className="text-primary-600" size={16} />
                 </div>
               )}
-              <div className="ml-3 flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {user?.firstName} {user?.lastName}
-                </p>
-                <p className="text-xs text-gray-500 truncate">Administrator</p>
-              </div>
+              {sidebarOpen && (
+                <div className="ml-3 flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.firstName} {user?.lastName}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    Administrator
+                  </p>
+                </div>
+              )}
             </div>
             <button
               onClick={handleLogout}
-              className="mt-3 flex items-center text-gray-600 hover:text-red-600 w-full px-2 py-2 rounded-lg hover:bg-gray-50"
+              className={`mt-3 flex items-center text-gray-600 hover:text-red-600 w-full px-2 py-2 rounded-lg hover:bg-gray-50 ${
+                sidebarOpen ? "justify-start" : "justify-center"
+              }`}
             >
               <FiLogOut size={20} />
-              <span className="ml-3 text-sm">Logout</span>
+              {sidebarOpen && <span className="ml-3 text-sm">Logout</span>}
             </button>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="md:ml-64 pt-16 md:pt-0 min-h-screen">
-          <div className="p-4 sm:p-6 md:p-8">
+        <div
+          className={`flex-1 ${sidebarOpen ? "ml-64" : "ml-20"} transition-all duration-300`}
+        >
+          <div className="p-8">
             {loading ? (
               <div className="flex justify-center items-center h-64">
                 <LoadingSpinner size="large" />

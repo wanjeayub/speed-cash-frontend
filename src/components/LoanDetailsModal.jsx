@@ -10,6 +10,7 @@ import {
   FiDollarSign,
   FiInfo,
   FiList,
+  FiSun,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 
@@ -37,18 +38,66 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
 
   // Calculate loan details
   const principal = loan.amount || 0;
-  const interestRate = loan.interestRate || 10;
-
-  let interestAmount = 0;
-  let totalRepayment = loan.totalAmount || 0;
-
-  if (loan.productType === "one_month") {
-    interestAmount = (principal * interestRate) / 100;
-    totalRepayment = principal + interestAmount;
-  }
-
+  const interestRate = loan.interestRate || 0;
+  const totalRepayment = loan.totalAmount || 0;
   const amountPaid = loan.amountPaid || 0;
   const remainingBalance = totalRepayment - amountPaid;
+
+  // Get product type specific info
+  const getProductTypeInfo = () => {
+    switch (loan.productType) {
+      case "one_month":
+        return {
+          name: "One Month Loan",
+          icon: FiDollarSign,
+          color: "blue",
+          description: "Single payment after 30 days",
+          periodLabel: "Due Date",
+          periodValue: loan.dueDate
+            ? new Date(loan.dueDate).toLocaleDateString()
+            : "N/A",
+        };
+      case "installment":
+        return {
+          name: "Monthly Installment Loan",
+          icon: FiClock,
+          color: "purple",
+          description: `${loan.tenureMonths} monthly payments`,
+          periodLabel: "Monthly Payment",
+          periodValue: `KES ${loan.installmentAmount?.toLocaleString() || 0}`,
+        };
+      case "weekly":
+        return {
+          name: "Weekly Loan",
+          icon: FiClock,
+          color: "green",
+          description: `${loan.tenureWeeks} weekly payments`,
+          periodLabel: "Weekly Payment",
+          periodValue: `KES ${loan.weeklyAmount?.toLocaleString() || 0}`,
+        };
+      case "daily":
+        return {
+          name: "Daily Loan",
+          icon: FiSun,
+          color: "orange",
+          description: `${loan.tenureDays} daily payments`,
+          periodLabel: "Daily Payment",
+          periodValue: `KES ${loan.dailyAmount?.toLocaleString() || 0}`,
+        };
+      default:
+        return {
+          name: "Loan",
+          icon: FiDollarSign,
+          color: "gray",
+          description: "",
+          periodLabel: "",
+          periodValue: "",
+        };
+    }
+  };
+
+  const productInfo = getProductTypeInfo();
+  const ProductIcon = productInfo.icon;
 
   // Format dates
   const formatDate = (date) => {
@@ -60,31 +109,26 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
     });
   };
 
-  // Calculate days remaining or overdue
-  const getDaysInfo = () => {
-    if (!loan.dueDate) return null;
+  // Calculate next payment info
+  const getNextPaymentInfo = () => {
+    if (!loan.repaymentSchedule) return null;
 
-    const today = new Date();
-    const dueDate = new Date(loan.dueDate);
-    const diffTime = dueDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const nextPending = loan.repaymentSchedule.find(
+      (p) => p.status === "pending",
+    );
+    if (!nextPending) return null;
 
-    if (diffDays > 0) {
-      return {
-        text: `${diffDays} days remaining`,
-        className: "text-green-600",
-      };
-    } else if (diffDays < 0) {
-      return {
-        text: `${Math.abs(diffDays)} days overdue`,
-        className: "text-red-600",
-      };
-    } else {
-      return { text: "Due today", className: "text-yellow-600" };
-    }
+    return {
+      period: nextPending.periodNumber,
+      dueDate: nextPending.dueDate,
+      amount: nextPending.totalAmount,
+      daysRemaining: Math.ceil(
+        (new Date(nextPending.dueDate) - new Date()) / (1000 * 60 * 60 * 24),
+      ),
+    };
   };
 
-  const daysInfo = getDaysInfo();
+  const nextPayment = getNextPaymentInfo();
 
   const getStatusColor = (status) => {
     const colors = {
@@ -98,7 +142,7 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
     return colors[status] || "bg-gray-100 text-gray-800";
   };
 
-  const getInstallmentStatusColor = (status) => {
+  const getPeriodStatusColor = (status) => {
     const colors = {
       pending: "bg-gray-100 text-gray-600",
       paid: "bg-green-100 text-green-800",
@@ -108,13 +152,8 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
   };
 
   const handleUpdate = async () => {
-    // Validate
     if (editedLoan.amount < 100) {
       toast.error("Amount must be at least KES 100");
-      return;
-    }
-    if (editedLoan.amount > 1000000) {
-      toast.error("Amount cannot exceed KES 1,000,000");
       return;
     }
 
@@ -167,10 +206,10 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
               >
                 {loan.status.charAt(0).toUpperCase() + loan.status.slice(1)}
               </span>
-              <span className="px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-sm font-medium">
-                {loan.productType === "one_month"
-                  ? "1 Month Loan"
-                  : `${loan.tenureMonths} Month Installment`}
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-medium bg-${productInfo.color}-100 text-${productInfo.color}-800`}
+              >
+                {productInfo.name}
               </span>
             </div>
             <p className="text-sm text-gray-500 mt-1">
@@ -220,7 +259,7 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
             >
               Overview
             </button>
-            {loan.productType === "installment" && (
+            {loan.repaymentSchedule && loan.repaymentSchedule.length > 0 && (
               <button
                 onClick={() => setActiveTab("schedule")}
                 className={`py-3 px-2 border-b-2 font-medium text-sm flex items-center ${
@@ -240,25 +279,60 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
         <div className="p-6">
           {activeTab === "overview" && (
             <div className="space-y-6">
-              {/* Status and Timeline Info */}
-              {daysInfo &&
+              {/* Next Payment Alert */}
+              {nextPayment &&
                 loan.status !== "paid" &&
-                loan.status !== "rejected" &&
-                loan.productType === "one_month" && (
+                loan.status !== "rejected" && (
                   <div
-                    className={`p-4 rounded-lg ${daysInfo.className.replace("text-", "bg-").replace("600", "50")}`}
+                    className={`p-4 rounded-lg ${
+                      nextPayment.daysRemaining < 0
+                        ? "bg-red-50"
+                        : nextPayment.daysRemaining <= 2
+                          ? "bg-yellow-50"
+                          : "bg-green-50"
+                    }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-medium">Payment Timeline</span>
-                      <span className={`font-semibold ${daysInfo.className}`}>
-                        {daysInfo.text}
-                      </span>
+                      <div className="flex items-center">
+                        <FiClock
+                          className={`mr-2 ${
+                            nextPayment.daysRemaining < 0
+                              ? "text-red-600"
+                              : nextPayment.daysRemaining <= 2
+                                ? "text-yellow-600"
+                                : "text-green-600"
+                          }`}
+                        />
+                        <span className="font-medium">Next Payment</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">
+                          Period #{nextPayment.period}: KES{" "}
+                          {nextPayment.amount.toLocaleString()}
+                        </p>
+                        <p
+                          className={`text-sm ${
+                            nextPayment.daysRemaining < 0
+                              ? "text-red-600"
+                              : nextPayment.daysRemaining <= 2
+                                ? "text-yellow-600"
+                                : "text-green-600"
+                          }`}
+                        >
+                          Due: {formatDate(nextPayment.dueDate)}
+                          {nextPayment.daysRemaining > 0
+                            ? ` (${nextPayment.daysRemaining} days remaining)`
+                            : nextPayment.daysRemaining < 0
+                              ? ` (${Math.abs(nextPayment.daysRemaining)} days overdue)`
+                              : " (Due today)"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
 
               {/* Loan Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <FiDollarSign className="text-blue-600" size={20} />
@@ -277,16 +351,8 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
                     </span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900">
-                    KES{" "}
-                    {loan.productType === "one_month"
-                      ? interestAmount.toLocaleString()
-                      : (loan.totalAmount - principal).toLocaleString()}
+                    KES {(totalRepayment - principal).toLocaleString()}
                   </p>
-                  {loan.productType === "installment" && (
-                    <p className="text-xs text-gray-600 mt-1">
-                      Reducing balance
-                    </p>
-                  )}
                 </div>
 
                 <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg">
@@ -298,6 +364,23 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
                   </div>
                   <p className="text-2xl font-bold text-gray-900">
                     KES {totalRepayment.toLocaleString()}
+                  </p>
+                </div>
+
+                <div
+                  className={`bg-gradient-to-br from-${productInfo.color}-50 to-${productInfo.color}-100 p-4 rounded-lg`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <ProductIcon
+                      className={`text-${productInfo.color}-600`}
+                      size={20}
+                    />
+                    <span className={`text-xs text-${productInfo.color}-600`}>
+                      {productInfo.periodLabel}
+                    </span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {productInfo.periodValue}
                   </p>
                 </div>
               </div>
@@ -355,12 +438,24 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
                   </div>
                 )}
 
-                {loan.productType === "installment" && (
+                {loan.tenureMonths && (
                   <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500">Monthly Installment</p>
-                    <p className="font-medium">
-                      KES {loan.installmentAmount?.toLocaleString() || 0}
-                    </p>
+                    <p className="text-xs text-gray-500">Tenure</p>
+                    <p className="font-medium">{loan.tenureMonths} Months</p>
+                  </div>
+                )}
+
+                {loan.tenureWeeks && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500">Tenure</p>
+                    <p className="font-medium">{loan.tenureWeeks} Weeks</p>
+                  </div>
+                )}
+
+                {loan.tenureDays && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500">Tenure</p>
+                    <p className="font-medium">{loan.tenureDays} Days</p>
                   </div>
                 )}
 
@@ -446,9 +541,9 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
                           <p className="text-xs text-gray-500">
                             {formatDate(payment.date)}
                           </p>
-                          {payment.installmentNumber && (
+                          {payment.periodNumber && (
                             <p className="text-xs text-gray-500">
-                              Installment #{payment.installmentNumber}
+                              Period #{payment.periodNumber}
                             </p>
                           )}
                         </div>
@@ -534,7 +629,7 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Installment
+                        Period
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Due Date
@@ -554,31 +649,31 @@ const LoanDetailsModal = ({ loan, onClose, onUpdate, onDelete }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {loan.repaymentSchedule.map((item) => (
+                    {loan.repaymentSchedule.map((period) => (
                       <tr
-                        key={item.installmentNumber}
+                        key={period.periodNumber}
                         className="hover:bg-gray-50"
                       >
                         <td className="px-4 py-3 whitespace-nowrap font-medium">
-                          #{item.installmentNumber}
+                          #{period.periodNumber}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          {formatDate(item.dueDate)}
+                          {formatDate(period.dueDate)}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-right">
-                          KES {item.principalPortion.toLocaleString()}
+                          KES {period.principalPortion.toLocaleString()}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-right">
-                          KES {item.interestPortion.toLocaleString()}
+                          KES {period.interestPortion.toLocaleString()}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-right font-medium">
-                          KES {item.totalAmount.toLocaleString()}
+                          KES {period.totalAmount.toLocaleString()}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap text-center">
                           <span
-                            className={`px-2 py-1 text-xs rounded-full ${getInstallmentStatusColor(item.status)}`}
+                            className={`px-2 py-1 text-xs rounded-full ${getPeriodStatusColor(period.status)}`}
                           >
-                            {item.status}
+                            {period.status}
                           </span>
                         </td>
                       </tr>

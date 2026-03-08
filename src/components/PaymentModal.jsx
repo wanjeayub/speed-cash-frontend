@@ -6,37 +6,49 @@ const PaymentModal = ({ loan, onClose, onSubmit }) => {
   const [paymentData, setPaymentData] = useState({
     amount: "",
     notes: "",
-    installmentNumber: "",
+    periodNumber: "",
   });
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [selectedInstallment, setSelectedInstallment] = useState(null);
+  const [selectedPeriod, setSelectedPeriod] = useState(null);
 
   useEffect(() => {
-    if (paymentData.installmentNumber && loan.repaymentSchedule) {
-      const installment = loan.repaymentSchedule.find(
-        (i) => i.installmentNumber === parseInt(paymentData.installmentNumber),
+    if (paymentData.periodNumber && loan.repaymentSchedule) {
+      const period = loan.repaymentSchedule.find(
+        (p) => p.periodNumber === parseInt(paymentData.periodNumber),
       );
-      setSelectedInstallment(installment);
-      if (installment) {
+      setSelectedPeriod(period);
+      if (period) {
         setPaymentData({
           ...paymentData,
-          amount: installment.totalAmount,
+          amount: period.totalAmount,
         });
       }
     }
-  }, [paymentData.installmentNumber]);
+  }, [paymentData.periodNumber]);
 
   const remainingBalance = loan.totalAmount - (loan.amountPaid || 0);
 
-  // For installment loans, get next pending installment
-  const nextInstallment =
-    loan.productType === "installment" && loan.repaymentSchedule
-      ? loan.repaymentSchedule.find(
-          (i) => i.status === "pending" || i.status === "overdue",
-        )
-      : null;
+  // For installment/weekly/daily loans, get next pending period
+  const nextPeriod = loan.repaymentSchedule
+    ? loan.repaymentSchedule.find(
+        (p) => p.status === "pending" || p.status === "overdue",
+      )
+    : null;
+
+  const getProductTypeLabel = () => {
+    switch (loan.productType) {
+      case "installment":
+        return "Month";
+      case "weekly":
+        return "Week";
+      case "daily":
+        return "Day";
+      default:
+        return "Period";
+    }
+  };
 
   const validate = () => {
     const newErrors = {};
@@ -48,8 +60,8 @@ const PaymentModal = ({ loan, onClose, onSubmit }) => {
       newErrors.amount = `Amount cannot exceed remaining balance of KES ${remainingBalance.toLocaleString()}`;
     }
 
-    if (loan.productType === "installment" && !paymentData.installmentNumber) {
-      newErrors.installmentNumber = "Please select an installment to pay";
+    if (loan.productType !== "one_month" && !paymentData.periodNumber) {
+      newErrors.periodNumber = `Please select a ${getProductTypeLabel().toLowerCase()} to pay`;
     }
 
     setErrors(newErrors);
@@ -67,10 +79,8 @@ const PaymentModal = ({ loan, onClose, onSubmit }) => {
         notes: paymentData.notes,
       };
 
-      if (loan.productType === "installment") {
-        paymentPayload.installmentNumber = parseInt(
-          paymentData.installmentNumber,
-        );
+      if (loan.productType !== "one_month") {
+        paymentPayload.periodNumber = parseInt(paymentData.periodNumber);
       }
 
       await onSubmit(loan._id, paymentPayload);
@@ -84,12 +94,11 @@ const PaymentModal = ({ loan, onClose, onSubmit }) => {
   };
 
   const handleQuickAmount = (percentage) => {
-    if (loan.productType === "installment" && nextInstallment) {
-      // For installment loans, quick amount should be the next installment
+    if (loan.productType !== "one_month" && nextPeriod) {
       setPaymentData({
         ...paymentData,
-        amount: nextInstallment.totalAmount,
-        installmentNumber: nextInstallment.installmentNumber,
+        amount: nextPeriod.totalAmount,
+        periodNumber: nextPeriod.periodNumber,
       });
     } else {
       const amount = (remainingBalance * percentage) / 100;
@@ -101,6 +110,19 @@ const PaymentModal = ({ loan, onClose, onSubmit }) => {
   };
 
   const isFullPayment = paymentData.amount == remainingBalance;
+
+  const getPeriodLabel = () => {
+    switch (loan.productType) {
+      case "installment":
+        return "Month";
+      case "weekly":
+        return "Week";
+      case "daily":
+        return "Day";
+      default:
+        return "Period";
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -123,8 +145,12 @@ const PaymentModal = ({ loan, onClose, onSubmit }) => {
             <p className="text-xs text-gray-600">Loan #{loan.loanNumber}</p>
             <span className="px-2 py-1 bg-primary-100 text-primary-800 rounded-full text-xs">
               {loan.productType === "one_month"
-                ? "1 Month"
-                : `${loan.tenureMonths} Months`}
+                ? "One Month"
+                : loan.productType === "installment"
+                  ? `${loan.tenureMonths} Months`
+                  : loan.productType === "weekly"
+                    ? `${loan.tenureWeeks} Weeks`
+                    : `${loan.tenureDays} Days`}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -151,79 +177,81 @@ const PaymentModal = ({ loan, onClose, onSubmit }) => {
 
         {/* Payment Form */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Installment Selection (for installment loans) */}
-          {loan.productType === "installment" && loan.repaymentSchedule && (
+          {/* Period Selection (for installment/weekly/daily loans) */}
+          {loan.productType !== "one_month" && loan.repaymentSchedule && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Select Installment
+                Select {getPeriodLabel()} to Pay
               </label>
               <select
-                value={paymentData.installmentNumber}
+                value={paymentData.periodNumber}
                 onChange={(e) =>
                   setPaymentData({
                     ...paymentData,
-                    installmentNumber: e.target.value,
+                    periodNumber: e.target.value,
                   })
                 }
-                className={`input-field ${errors.installmentNumber ? "border-red-500" : ""}`}
+                className={`input-field ${errors.periodNumber ? "border-red-500" : ""}`}
                 disabled={loading}
               >
-                <option value="">Choose installment</option>
+                <option value="">
+                  Choose {getPeriodLabel().toLowerCase()}
+                </option>
                 {loan.repaymentSchedule
-                  .filter((i) => i.status !== "paid")
-                  .map((item) => (
+                  .filter((p) => p.status !== "paid")
+                  .map((period) => (
                     <option
-                      key={item.installmentNumber}
-                      value={item.installmentNumber}
+                      key={period.periodNumber}
+                      value={period.periodNumber}
                     >
-                      Installment #{item.installmentNumber} - Due:{" "}
-                      {new Date(item.dueDate).toLocaleDateString()} - KES{" "}
-                      {item.totalAmount.toLocaleString()}
+                      {getPeriodLabel()} #{period.periodNumber} - Due:{" "}
+                      {new Date(period.dueDate).toLocaleDateString()} - KES{" "}
+                      {period.totalAmount.toLocaleString()}
                     </option>
                   ))}
               </select>
-              {errors.installmentNumber && (
+              {errors.periodNumber && (
                 <p className="mt-1 text-xs text-red-600">
-                  {errors.installmentNumber}
+                  {errors.periodNumber}
                 </p>
               )}
             </div>
           )}
 
-          {/* Next Installment Info */}
-          {loan.productType === "installment" &&
-            nextInstallment &&
-            !selectedInstallment && (
+          {/* Next Period Info */}
+          {loan.productType !== "one_month" &&
+            nextPeriod &&
+            !selectedPeriod && (
               <div className="bg-blue-50 p-3 rounded-lg text-sm">
                 <p className="font-medium text-blue-800">Next Payment Due</p>
                 <p className="text-xs text-blue-600 mt-1">
-                  Installment #{nextInstallment.installmentNumber}: KES{" "}
-                  {nextInstallment.totalAmount.toLocaleString()}
+                  {getPeriodLabel()} #{nextPeriod.periodNumber}: KES{" "}
+                  {nextPeriod.totalAmount.toLocaleString()}
                   <br />
-                  Due: {new Date(nextInstallment.dueDate).toLocaleDateString()}
+                  Due: {new Date(nextPeriod.dueDate).toLocaleDateString()}
                 </p>
               </div>
             )}
 
-          {/* Selected Installment Info */}
-          {selectedInstallment && (
+          {/* Selected Period Info */}
+          {selectedPeriod && (
             <div className="bg-green-50 p-3 rounded-lg">
               <p className="font-medium text-green-800">
-                Installment #{selectedInstallment.installmentNumber}
+                {getPeriodLabel()} #{selectedPeriod.periodNumber}
               </p>
               <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
                 <div>
                   <span className="text-gray-600">Principal:</span>
                   <br />
                   <span className="font-medium">
-                    KES {selectedInstallment.principalPortion.toLocaleString()}
+                    KES {selectedPeriod.principalPortion.toLocaleString()}
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-600">Interest:</span>
                   <br />
                   <span className="font-medium">
-                    KES {selectedInstallment.interestPortion.toLocaleString()}
+                    KES {selectedPeriod.interestPortion.toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -251,7 +279,7 @@ const PaymentModal = ({ loan, onClose, onSubmit }) => {
                 required
                 disabled={
                   loading ||
-                  (loan.productType === "installment" && !!selectedInstallment)
+                  (loan.productType !== "one_month" && !!selectedPeriod)
                 }
               />
             </div>
@@ -298,7 +326,7 @@ const PaymentModal = ({ loan, onClose, onSubmit }) => {
                   className="col-span-3 px-2 py-1.5 text-xs bg-primary-100 hover:bg-primary-200 text-primary-800 rounded-lg transition-colors"
                   disabled={loading}
                 >
-                  Pay Next Installment
+                  Pay Next {getPeriodLabel()}
                 </button>
               )}
             </div>
