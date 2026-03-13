@@ -57,6 +57,31 @@ class AdminService {
     const response = await api.post("/admin/manage/create", adminData);
     return response.data;
   }
+  // Due Loans Management
+  async getDueLoansToday() {
+    const response = await api.get("/admin/due-loans/today");
+    return response.data;
+  }
+
+  async getUpcomingDueLoans() {
+    const response = await api.get("/admin/due-loans/upcoming");
+    return response.data;
+  }
+
+  async getOverdueLoans() {
+    const response = await api.get("/admin/due-loans/overdue");
+    return response.data;
+  }
+
+  async sendDueLoansNotification() {
+    const response = await api.post("/admin/due-loans/send-notification");
+    return response.data;
+  }
+
+  async checkAndUpdateDefaulted() {
+    const response = await api.post("/admin/due-loans/check-defaults");
+    return response.data;
+  }
 }
 
 export default new AdminService();

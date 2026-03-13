@@ -28,6 +28,7 @@ import {
   FiShield,
   FiUserPlus,
   FiSun,
+  FiMail,
 } from "react-icons/fi";
 import { logout } from "../store/slices/authSlice";
 import {
@@ -48,6 +49,7 @@ import PaymentModal from "../components/PaymentModal";
 import LoanStats from "../components/LoanStats";
 import AdminSettings from "../components/AdminSettings";
 import InstallmentScheduleModal from "../components/InstallmentScheduleModal";
+import DueLoans from "../components/DueLoans";
 import {
   LineChart,
   Line,
@@ -86,10 +88,11 @@ const AdminDashboard = () => {
     search: "",
   });
 
-  // Define tabs array
+  // Define tabs array with new Due Loans tab
   const tabs = [
     { id: "dashboard", label: "Dashboard", icon: FiPieChart },
     { id: "users", label: "Users", icon: FiUsers },
+    { id: "due", label: "Due Loans", icon: FiClock },
     { id: "loans", label: "Loans", icon: FiCreditCard },
     { id: "pending", label: "Pending Loans", icon: FiClock },
     { id: "approved", label: "Approved Loans", icon: FiCheckCircle },
@@ -1304,6 +1307,8 @@ const AdminDashboard = () => {
         return renderDashboard();
       case "users":
         return renderUsers();
+      case "due":
+        return <DueLoans />;
       case "loans":
         return (
           <div className="space-y-6">
