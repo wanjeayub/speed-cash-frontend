@@ -15,12 +15,14 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Log the request for debugging
-    console.log(
-      `Making ${config.method.toUpperCase()} request to:`,
-      config.url,
-    );
-    console.log("Request data:", config.data);
+    // Enhanced logging
+    console.log("=== API REQUEST ===");
+    console.log("URL:", config.url);
+    console.log("Method:", config.method);
+    console.log("Headers:", config.headers);
+    console.log("Data being sent:", config.data);
+    console.log("Data as string:", JSON.stringify(config.data));
+    console.log("===================");
 
     return config;
   },

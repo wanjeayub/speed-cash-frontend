@@ -34,6 +34,8 @@ class AdminService {
 
   async processPayment(loanId, paymentData) {
     const response = await api.post(`/admin/loans/${loanId}/pay`, paymentData);
+    console.log("Payment response:", response.data);
+    console.log("Payment data sent:", paymentData);
     return response.data;
   }
 

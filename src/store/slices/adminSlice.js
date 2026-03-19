@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import adminService from "../../services/admin.service";
 import toast from "react-hot-toast";
+import api from "../../services/api";
 
 const initialState = {
   users: [],
@@ -101,18 +102,19 @@ export const rejectLoan = createAsyncThunk(
 
 export const processPayment = createAsyncThunk(
   "admin/processPayment",
-  async ({ loanId, amount, notes }, { rejectWithValue }) => {
+  async ({ loanId, ...paymentData }, { rejectWithValue }) => {
     try {
-      const response = await adminService.processPayment(loanId, {
-        amount,
-        notes,
-      });
-      toast.success("Payment processed successfully");
-      return response.loan;
-    } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to process payment",
+      console.log("processPayment - loanId:", loanId);
+      console.log("processPayment - paymentData:", paymentData);
+
+      const response = await api.post(
+        `/admin/loans/${loanId}/pay`,
+        paymentData,
       );
+      return response.data;
+    } catch (error) {
+      console.error("processPayment error:", error);
+      return rejectWithValue(error.response?.data || error.message);
     }
   },
 );
