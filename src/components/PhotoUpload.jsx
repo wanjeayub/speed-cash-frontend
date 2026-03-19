@@ -1,18 +1,20 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
-import { FiUpload, FiCamera, FiCheckCircle, FiX } from "react-icons/fi";
+import { FiUpload, FiCamera, FiCheckCircle, FiX, FiLock } from "react-icons/fi";
 
-const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
+const PhotoUpload = ({
+  type,
+  label,
+  currentPhoto,
+  onUpload,
+  progress,
+  disabled = false,
+  disabledMessage = "Cannot change ID photos while loans are active",
+}) => {
   const [preview, setPreview] = useState(null);
   const [uploadError, setUploadError] = useState(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-
-  useEffect(() => {
-    // Reset states when currentPhoto changes
-    setImageLoaded(false);
-    setImageError(false);
-  }, [currentPhoto]);
 
   useEffect(() => {
     // Clean up preview when component unmounts
@@ -25,6 +27,11 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
 
   const onDrop = useCallback(
     (acceptedFiles, rejectedFiles) => {
+      if (disabled) {
+        setUploadError(disabledMessage);
+        return;
+      }
+
       if (rejectedFiles.length > 0) {
         setUploadError("File too large or invalid format. Max size: 5MB");
         return;
@@ -43,7 +50,7 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
         onUpload(file);
       }
     },
-    [onUpload],
+    [onUpload, disabled, disabledMessage],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -53,6 +60,7 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
     },
     maxSize: 5 * 1024 * 1024, // 5MB
     multiple: false,
+    disabled: disabled,
   });
 
   const getLabel = () => {
@@ -74,15 +82,25 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
 
       <div
         {...getRootProps()}
-        className={`relative border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
-          isDragActive
-            ? "border-primary-500 bg-primary-50"
-            : showImage
-              ? "border-green-500 bg-green-50"
-              : "border-gray-300 hover:border-primary-400 hover:bg-gray-50"
+        className={`relative border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
+          disabled
+            ? "bg-gray-100 border-gray-300 cursor-not-allowed opacity-60"
+            : isDragActive
+              ? "border-primary-500 bg-primary-50 cursor-pointer"
+              : showImage
+                ? "border-green-500 bg-green-50 cursor-pointer"
+                : "border-gray-300 hover:border-primary-400 hover:bg-gray-50 cursor-pointer"
         }`}
       >
-        <input {...getInputProps()} />
+        <input {...getInputProps()} disabled={disabled} />
+
+        {disabled && (
+          <div className="absolute inset-0 bg-gray-100 bg-opacity-50 rounded-lg flex items-center justify-center z-10">
+            <div className="bg-white rounded-full p-2 shadow-lg">
+              <FiLock className="text-gray-500" size={20} />
+            </div>
+          </div>
+        )}
 
         {showImage ? (
           <div className="space-y-3">
@@ -92,7 +110,6 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
                 alt={getLabel()}
                 className="mx-auto max-h-32 rounded-lg object-cover border-2 border-white shadow"
                 onLoad={() => {
-                  console.log("Image loaded successfully:", imageToShow);
                   setImageLoaded(true);
                   setImageError(false);
                 }}
@@ -120,7 +137,7 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
                 {currentPhoto ? "Uploaded" : "Processing..."}
               </span>
             </div>
-            {currentPhoto && (
+            {currentPhoto && !disabled && (
               <p className="text-xs text-gray-500">Click to replace</p>
             )}
           </div>
@@ -132,9 +149,11 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
               <FiUpload className="mx-auto text-4xl text-gray-400" />
             )}
             <p className="text-sm text-gray-600">
-              {isDragActive
-                ? "Drop the image here"
-                : `Drag & drop or click to upload`}
+              {disabled
+                ? disabledMessage
+                : isDragActive
+                  ? "Drop the image here"
+                  : `Drag & drop or click to upload`}
             </p>
             <p className="text-xs text-gray-500">
               Max file size: 5MB (JPG, PNG, GIF)
@@ -143,7 +162,7 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
         )}
 
         {/* Progress Bar - Overlay during upload */}
-        {progress > 0 && progress < 100 && !showImage && (
+        {progress > 0 && progress < 100 && !showImage && !disabled && (
           <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
             <div className="w-3/4">
               <div className="bg-white rounded-full h-2.5 mb-2">
@@ -168,11 +187,11 @@ const PhotoUpload = ({ type, label, currentPhoto, onUpload, progress }) => {
         </div>
       )}
 
-      {/* Image Error Message */}
-      {imageError && currentPhoto && (
-        <div className="flex items-center space-x-2 text-sm text-yellow-600 bg-yellow-50 p-2 rounded">
-          <FiX size={16} />
-          <span>Failed to load image. Please try refreshing.</span>
+      {/* Disabled Message */}
+      {disabled && currentPhoto && (
+        <div className="flex items-center space-x-2 text-sm text-gray-500 bg-gray-50 p-2 rounded">
+          <FiLock size={16} />
+          <span>This photo is locked while you have active loans</span>
         </div>
       )}
     </div>

@@ -58,6 +58,10 @@ const UserDashboard = () => {
     phoneNumbers: [],
   });
 
+  const hasActiveLoans = loans.some((loan) =>
+    ["pending", "approved", "partial"].includes(loan.status),
+  );
+
   useEffect(() => {
     // Refresh user data when dashboard loads
     dispatch(getCurrentUser());
@@ -315,6 +319,7 @@ const UserDashboard = () => {
                 completionPercentage={completionPercentage}
                 onUpload={handlePhotoUpload}
                 uploadProgress={uploadProgress}
+                hasActiveLoans={hasActiveLoans}
               />
             )}
 
@@ -469,6 +474,14 @@ const UserDashboard = () => {
             {/* ID Photos */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h2 className="text-xl font-semibold mb-4">ID Photos</h2>
+              {hasActiveLoans && (
+                <div className="mb-4 p-3 bg-yellow-50 rounded-lg">
+                  <p className="text-sm text-yellow-800 flex items-center">
+                    <FiLock className="mr-2" size={16} />
+                    ID photos are locked while you have active loans
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <PhotoUpload
                   type="idFront"
@@ -476,6 +489,8 @@ const UserDashboard = () => {
                   currentPhoto={user?.idPhotoFront?.url}
                   onUpload={(file) => handlePhotoUpload(file, "idFront")}
                   progress={uploadProgress?.idFront}
+                  disabled={hasActiveLoans}
+                  disabledMessage="Cannot change ID while loans are active"
                 />
                 <PhotoUpload
                   type="idBack"
@@ -483,6 +498,8 @@ const UserDashboard = () => {
                   currentPhoto={user?.idPhotoBack?.url}
                   onUpload={(file) => handlePhotoUpload(file, "idBack")}
                   progress={uploadProgress?.idBack}
+                  disabled={hasActiveLoans}
+                  disabledMessage="Cannot change ID while loans are active"
                 />
               </div>
             </div>

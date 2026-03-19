@@ -5,6 +5,7 @@ import {
   FiCamera,
   FiCreditCard,
   FiUser,
+  FiLock,
 } from "react-icons/fi";
 import PhotoUpload from "./PhotoUpload";
 
@@ -13,6 +14,7 @@ const ProfileCompletion = ({
   completionPercentage,
   onUpload,
   uploadProgress,
+  hasActiveLoans = false,
 }) => {
   const [animatedPercentage, setAnimatedPercentage] = useState(0);
 
@@ -44,11 +46,13 @@ const ProfileCompletion = ({
       label: "ID Front Photo",
       met: !!user?.idPhotoFront?.url,
       icon: FiCreditCard,
+      locked: hasActiveLoans && !!user?.idPhotoFront?.url,
     },
     {
       label: "ID Back Photo",
       met: !!user?.idPhotoBack?.url,
       icon: FiCreditCard,
+      locked: hasActiveLoans && !!user?.idPhotoBack?.url,
     },
     {
       label: "Two Phone Numbers",
@@ -59,6 +63,7 @@ const ProfileCompletion = ({
 
   const pendingItems = requirements.filter((r) => !r.met);
   const completedItems = requirements.filter((r) => r.met);
+  const lockedItems = requirements.filter((r) => r.locked);
 
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm">
@@ -103,9 +108,23 @@ const ProfileCompletion = ({
                 >
                   {req.label}
                 </span>
+                {req.locked && (
+                  <FiLock className="text-gray-400 ml-1" size={12} />
+                )}
               </div>
             ))}
           </div>
+
+          {/* Active Loans Warning */}
+          {hasActiveLoans && (
+            <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
+              <p className="text-sm text-yellow-800 flex items-center">
+                <FiLock className="mr-2" size={16} />
+                <strong>ID photos are locked:</strong> You cannot change your ID
+                photos while you have active loans.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -127,6 +146,8 @@ const ProfileCompletion = ({
                 label="ID Front"
                 onUpload={(file) => onUpload(file, "idFront")}
                 progress={uploadProgress?.idFront}
+                disabled={hasActiveLoans}
+                disabledMessage="Cannot upload ID front while loans are active"
               />
             )}
             {!user?.idPhotoBack?.url && (
@@ -135,7 +156,42 @@ const ProfileCompletion = ({
                 label="ID Back"
                 onUpload={(file) => onUpload(file, "idBack")}
                 progress={uploadProgress?.idBack}
+                disabled={hasActiveLoans}
+                disabledMessage="Cannot upload ID back while loans are active"
               />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Locked ID Photos Display */}
+      {lockedItems.length > 0 && (
+        <div className="mt-6">
+          <h4 className="font-medium mb-3">Your ID Documents (Locked)</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {user?.idPhotoFront?.url && (
+              <div className="relative">
+                <PhotoUpload
+                  type="idFront"
+                  label="ID Front"
+                  currentPhoto={user.idPhotoFront.url}
+                  onUpload={() => {}}
+                  disabled={true}
+                  disabledMessage="Locked - Complete loans to change"
+                />
+              </div>
+            )}
+            {user?.idPhotoBack?.url && (
+              <div className="relative">
+                <PhotoUpload
+                  type="idBack"
+                  label="ID Back"
+                  currentPhoto={user.idPhotoBack.url}
+                  onUpload={() => {}}
+                  disabled={true}
+                  disabledMessage="Locked - Complete loans to change"
+                />
+              </div>
             )}
           </div>
         </div>
