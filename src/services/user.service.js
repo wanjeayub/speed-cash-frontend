@@ -19,6 +19,13 @@ class UserService {
     formData.append("photo", file);
     formData.append("type", type);
 
+    console.log("Uploading photo:", {
+      type,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+    });
+
     const response = await api.post("/users/upload-photo", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
@@ -30,6 +37,8 @@ class UserService {
         onProgress(percentCompleted);
       },
     });
+
+    console.log("Upload response:", response.data);
     return response.data;
   }
 
