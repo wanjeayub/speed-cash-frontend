@@ -240,7 +240,7 @@ const UserDashboard = () => {
                 </div>
                 <div>
                   <p className="text-sm text-green-100">Paybill Number</p>
-                  <p className="text-2xl font-bold tracking-wider">522522</p>
+                  <p className="text-2xl font-bold tracking-wider">522533</p>
                 </div>
               </div>
 
@@ -250,9 +250,7 @@ const UserDashboard = () => {
                 </div>
                 <div>
                   <p className="text-sm text-green-100">Account Number</p>
-                  <p className="text-2xl font-bold tracking-wider">
-                    1295809656
-                  </p>
+                  <p className="text-2xl font-bold tracking-wider">9010506</p>
                 </div>
               </div>
             </div>
