@@ -259,7 +259,7 @@ const UserDashboard = () => {
           <div className="flex space-x-2">
             <button
               onClick={() => {
-                navigator.clipboard.writeText("522522");
+                navigator.clipboard.writeText("522533");
                 toast.success("Paybill number copied!");
               }}
               className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-colors"
@@ -269,7 +269,7 @@ const UserDashboard = () => {
             </button>
             <button
               onClick={() => {
-                navigator.clipboard.writeText("1295809656");
+                navigator.clipboard.writeText("9010506");
                 toast.success("Account number copied!");
               }}
               className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-colors"
@@ -283,8 +283,8 @@ const UserDashboard = () => {
         <div className="mt-4 pt-4 border-t border-white/20">
           <p className="text-sm text-green-100 flex items-center">
             <FiInfo className="mr-2" size={16} />
-            Go to M-PESA, select Paybill, enter 522522, account 1295809656, and
-            the loan amount
+            Go to M-PESA, select Paybill, enter 522533, account 9010506, and the
+            loan amount
           </p>
         </div>
       </div>
