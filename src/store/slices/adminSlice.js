@@ -119,6 +119,23 @@ export const processPayment = createAsyncThunk(
   },
 );
 
+export const markDefaultedAsPaid = createAsyncThunk(
+  "admin/markDefaultedAsPaid",
+  async ({ loanId, notes }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/admin/loans/${loanId}/mark-paid`, {
+        notes: notes || "Marked as paid from defaulted status",
+      });
+      toast.success("Loan marked as paid successfully");
+      return response.data.loan || response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to mark loan as paid",
+      );
+    }
+  },
+);
+
 const adminSlice = createSlice({
   name: "admin",
   initialState,
@@ -208,6 +225,19 @@ const adminSlice = createSlice({
         if (index !== -1) {
           state.loans[index] = action.payload;
         }
+      })
+      // Mark Defaulted as Paid
+      .addCase(markDefaultedAsPaid.fulfilled, (state, action) => {
+        const index = state.loans.findIndex(
+          (l) => l._id === action.payload._id,
+        );
+        if (index !== -1) {
+          state.loans[index] = action.payload;
+        }
+      })
+      .addCase(markDefaultedAsPaid.rejected, (state, action) => {
+        state.error = action.payload;
+        toast.error(action.payload);
       })
 
       // Process Payment

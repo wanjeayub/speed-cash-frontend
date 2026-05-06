@@ -39,6 +39,7 @@ import {
   approveLoan,
   rejectLoan,
   processPayment,
+  markDefaultedAsPaid,
 } from "../store/slices/adminSlice";
 
 import adminService from "../services/admin.service";
@@ -130,6 +131,29 @@ const AdminDashboard = () => {
       await dispatch(rejectLoan({ loanId, reason }));
       loadDashboardData();
       toast.success("Loan rejected successfully");
+    }
+  };
+
+  const handleMarkDefaultedAsPaid = async (loanId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to mark this defaulted loan as paid? This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await dispatch(
+        markDefaultedAsPaid({
+          loanId,
+          notes: "Marked as paid from defaulted status by admin",
+        }),
+      );
+      loadDashboardData();
+      toast.success("Defaulted loan marked as paid successfully");
+    } catch (error) {
+      toast.error("Failed to mark loan as paid");
     }
   };
 
@@ -528,6 +552,17 @@ const AdminDashboard = () => {
                               className="text-primary-600 hover:text-primary-900 text-xs bg-primary-50 px-2 py-1 rounded"
                             >
                               Process Payment
+                            </button>
+                          )}
+                          {loan.status === "defaulted" && (
+                            <button
+                              onClick={() =>
+                                handleMarkDefaultedAsPaid(loan._id)
+                              }
+                              className="text-green-600 hover:text-green-900 text-xs bg-green-50 px-2 py-1 rounded flex items-center"
+                            >
+                              <FiCheckCircle className="mr-1" size={12} />
+                              Mark as Paid
                             </button>
                           )}
                         </div>
